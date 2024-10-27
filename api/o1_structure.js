@@ -43,14 +43,14 @@ export default async function handler(req, res) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model: 'o1-mini',
+                model: 'o1-preview',
                 messages: [
                     {
                         role: 'user',
                         content: prompt
                     }
                 ],
-                max_completion_tokens: Math.min(parseInt(maxTokens) || 25000, 65536),
+                max_completion_tokens: Math.min(parseInt(maxTokens) || 25000, 28000),
             }),
             signal: controller.signal
         });
