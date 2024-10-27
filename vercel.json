@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "name": "narrately-novel-real",
   "functions": {
     "api/o1_structure.js": {
       "memory": 2048,
