@@ -939,8 +939,8 @@ $(document).ready(function() {
 const o1_TOKEN_TARGET = 25000;
 const o1_TOKEN_MAX = 25500;
 const GENERATION_TIMEOUT = 480000; // 8 minutes
-const MIN_CHAPTERS = 10;
-const MAX_CHAPTERS = 12;
+const MIN_CHAPTERS = 7;
+const MAX_CHAPTERS = 20;
 const MIN_TOKENS = 1000;
 const CHUNK_SIZE = 5000; // For text processing
 const MAX_PROMPT_LENGTH = 6500;
@@ -1017,10 +1017,10 @@ CONTEXT GUIDELINES:
    - Progress character development
 
 TOKEN DISTRIBUTION:
-- Chapters 1-3: ${TOKEN_DISTRIBUTION.introduction.tokens} tokens - Setup and Introduction
-- Chapters 4-6: ${TOKEN_DISTRIBUTION.risingAction.tokens} tokens - Rising Action
-- Chapters 7-9: ${TOKEN_DISTRIBUTION.climaxBuild.tokens} tokens - Climax Build-up
-- Chapters 10-12: ${TOKEN_DISTRIBUTION.resolution.tokens} tokens - Climax and Resolution\n\n`;
+- Plot Setup and Character Introductions. Establish the world, setting, and main characters. Introduce mini-conflicts, backstories, and hints of secrets to build layered characters and initial intrigue. Lay down foundational themes and potential alliances or rivalries: ${TOKEN_DISTRIBUTION.introduction.tokens} tokens
+- Rising Action and Complications. Deepen the primary conflict by adding multiple challenges, obstacles, and subplots. Each character faces personal struggles or side quests that intertwine with the main plot, building tension and complex relationships. Explore moral dilemmas and shifting loyalties: Expands on the plot by introducing complications, developing character relationships, and increasing tension as conflicts begin to emerge: ${TOKEN_DISTRIBUTION.risingAction.tokens} tokens - Rising Action
+- Climax with Major Twists and Confrontations. Heighten the intensity with surprising twists, betrayals, and climactic confrontations. Allow mini-stories to converge, as each character's decisions impact the central conflict. Provide revelations that reshape the stakes and alter character dynamics: ${TOKEN_DISTRIBUTION.climaxBuild.tokens} tokens
+- Resolution and Aftermath. Resolve all major and minor conflicts with meaningful conclusions for each character. Show the consequences of their actions, offering closure or hints of future challenges. Reflect on character growth, final alliances, and lessons learned, leaving an impactful ending: ${TOKEN_DISTRIBUTION.resolution.tokens} tokens\n\n`;
 
     // Handle basic settings
     const basicSettings = {
