@@ -1,17 +1,12 @@
-{
-  "name": "narrately-novel-real",
+
+  "name": "narrately-vercel",
   "version": "1.0.0",
   "private": true,
   "engines": {
     "node": "18.x"
   },
-  "scripts": {
-    "build": "echo 'No build required'",
-    "vercel-build": "echo 'No build required'"
-  },
   "dependencies": {
     "node-fetch": "^3.3.0"
   },
-  "type": "module",
-  "projectId": "narrately-novel-real-k1t08pamr-fs-dev1"
+  "type": "module"
 }
