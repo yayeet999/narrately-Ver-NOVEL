@@ -1,5 +1,5 @@
 {
-  "name": "narrately-vercel",
+  "name": "narrately-novel-real",
   "version": "1.0.0",
   "private": true,
   "engines": {
@@ -12,5 +12,6 @@
   "dependencies": {
     "node-fetch": "^3.3.0"
   },
-  "type": "module"
+  "type": "module",
+  "projectId": "narrately-novel-real-k1t08pamr-fs-dev1"
 }
