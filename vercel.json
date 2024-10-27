@@ -1,18 +1,16 @@
 {
   "version": 2,
-  "name": "narrately-novel-real",
   "functions": {
     "api/o1_structure.js": {
       "memory": 2048,
-      "maxDuration": 480
+      "maxDuration": 300
     }
   },
   "routes": [
-    {
+    { 
       "src": "/api/o1_structure",
       "dest": "/api/o1_structure.js",
-      "methods": ["POST", "OPTIONS"]
-    "methods": ["POST", "OPTIONS"],
+      "methods": ["POST", "OPTIONS"],
       "headers": {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET,OPTIONS,PATCH,DELETE,POST,PUT",
