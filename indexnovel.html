@@ -936,21 +936,21 @@ $(document).ready(function() {
 });
 
 // Novel-specific constants optimized for o1-preview
-const o1_TOKEN_TARGET = 25000;
-const o1_TOKEN_MAX = 28000;
+const o1_TOKEN_TARGET = 4000;
+const o1_TOKEN_MAX = 4500;
 const GENERATION_TIMEOUT = 480000; // 8 minutes
 const MIN_CHAPTERS = 7;
 const MAX_CHAPTERS = 20;
 const MIN_TOKENS = 25000;
-const CHUNK_SIZE = 5000; // For text processing
-const MAX_PROMPT_LENGTH = 6500;
+const CHUNK_SIZE = 1000; // For text processing
+const MAX_PROMPT_LENGTH = 3000;
 
 // Token distribution map for validation
 const TOKEN_DISTRIBUTION = {
-    introduction: { tokens: 4000, chapters: '1-3' },
-    risingAction: { tokens: 6000, chapters: '4-6' },
-    climaxBuild: { tokens: 8000, chapters: '7-9' },
-    resolution: { tokens: 7000, chapters: '10-12' }
+    introduction: { tokens: 1000, chapters: '1-3' },
+    risingAction: { tokens: 1000, chapters: '4-6' },
+    climaxBuild: { tokens: 1000, chapters: '7-9' },
+    resolution: { tokens: 1000, chapters: '10-12' }
 };
 
 // Get values from form fields with enhanced error checking
