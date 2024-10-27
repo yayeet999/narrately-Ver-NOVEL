@@ -3,7 +3,7 @@
   "functions": {
     "api/o1_structure.js": {
       "memory": 2048,
-      "maxDuration": 300
+      "maxDuration": 480
     }
   },
   "routes": [
