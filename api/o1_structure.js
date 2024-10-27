@@ -50,7 +50,7 @@ export default async function handler(req, res) {
                         content: prompt
                     }
                 ],
-                max_completion_tokens: Math.min(parseInt(maxTokens) || 5000, 32768),
+                max_completion_tokens: Math.min(parseInt(maxTokens) || 3500, 32768),
             }),
             signal: controller.signal
         });
