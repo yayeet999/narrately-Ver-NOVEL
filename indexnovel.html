@@ -988,7 +988,7 @@ function getMultiSelectValue(id) {
 
 // O1-optimized prompt building
 function buildPrompt() {
-    let prompt = `Generate a high-quality novel of exactly ${o1_TOKEN_TARGET} tokens using these parameters. Maintain perfect context and narrative coherence throughout.
+    let prompt = `Generate a complete, high-quality novel of exactly ${o1_TOKEN_TARGET} tokens in a single response. This is NOT a request for an outline or multi-step process. Maintain perfect context and narrative coherence throughout.
 
 CORE REQUIREMENTS:
 - Ensure exact token count of ${o1_TOKEN_TARGET}
