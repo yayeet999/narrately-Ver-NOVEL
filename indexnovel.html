@@ -939,8 +939,6 @@ $(document).ready(function() {
 const o1_TOKEN_TARGET = 4000;
 const o1_TOKEN_MAX = 4500;
 const GENERATION_TIMEOUT = 480000; // 8 minutes
-const MIN_CHAPTERS = 7;
-const MAX_CHAPTERS = 20;
 const MIN_TOKENS = 4000;
 const MAX_PROMPT_LENGTH = 15000;
 
@@ -990,7 +988,6 @@ function buildPrompt() {
     let prompt = `Generate a complete novel of EXACTLY ${o1_TOKEN_TARGET} tokens (between ${o1_TOKEN_TARGET - 500} and ${o1_TOKEN_MAX} tokens). This is a strict requirement. This is NOT a request for an outline or multi-step process. Maintain perfect context and narrative coherence throughout.
     
 CRITICAL LENGTH REQUIREMENTS:
-- Minimum length: ${o1_TOKEN_TARGET - 500} tokens
 - Target length: ${o1_TOKEN_TARGET} tokens
 - Maximum length: ${o1_TOKEN_MAX} tokens
 - Do NOT end the story early
@@ -1004,7 +1001,7 @@ CORE REQUIREMENTS:
 - Follow all parameters precisely
 
 NOVEL STRUCTURE:
-1. Divide the novel into ${MIN_CHAPTERS}-${MAX_CHAPTERS} well-structured chapters
+1. Divide the novel into well-structured chapters
 2. Begin each chapter with "Chapter X: [Chapter Title]"
 3. Maintain consistent narrative threads
 4. End each chapter with a clear connection to the next
