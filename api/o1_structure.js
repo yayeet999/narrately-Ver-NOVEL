@@ -43,7 +43,7 @@ export default async function handler(req, res) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model: 'o1-preview',
+                model: 'o1-mini',
                 messages: [
                     {
                         role: 'user',
