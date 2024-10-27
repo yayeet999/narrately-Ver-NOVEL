@@ -33,6 +33,54 @@
             align-items: center;
         }
 
+/* Slider Container and Styling */
+.slider-container {
+    margin-bottom: 24px;
+}
+
+.slider {
+    width: 100%;
+    margin: 10px 0;
+}
+
+/* Slider Values Layout */
+.values {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    text-align: center;
+    font-size: 12px;
+    color: #4A5568;
+    margin-top: 8px;
+}
+
+.values span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 36px;
+    line-height: 1.2;
+    padding: 4px;
+}
+
+/* Color-coded sections */
+.character-slider .slider {
+    accent-color: #4A90E2;
+}
+
+.plot-slider .slider {
+    accent-color: #50C878;
+}
+
+.world-slider .slider {
+    accent-color: #9B59B6;
+}
+
+.mood-slider .slider {
+    accent-color: #E67E22;
+}
+        
         /* Controls Container */
         .controls-container {
             width: 100%;
