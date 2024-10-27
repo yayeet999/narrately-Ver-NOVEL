@@ -1189,12 +1189,12 @@ async function createStory() {
         
         // O1-specific prompt validation
         if (prompt.length > MAX_PROMPT_LENGTH) {
-            throw new Error('Prompt exceeds maximum allowed length for o1-preview model');
+            throw new Error('Prompt exceeds maximum allowed length for o1-mini model');
         }
 
         const apiUrl = window.location.hostname === 'localhost' 
-            ? '/api/generate'
-            : `${window.location.origin}/api/generate`;
+            ? '/api/o1_structure'
+            : `${window.location.origin}/api/o1_structure`;
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), GENERATION_TIMEOUT);
