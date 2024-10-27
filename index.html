@@ -888,8 +888,8 @@ $(document).ready(function() {
 });
 
 // Novel-specific constants
-const o1_TOKEN_TARGET = 10000;
-const o1_TOKEN_MAX = 10500;
+const o1_TOKEN_TARGET = 25000;
+const o1_TOKEN_MAX = 25500;
 const GENERATION_TIMEOUT = 480000; // 8 minutes
 
 // Get values from form fields with enhanced error checking
@@ -928,10 +928,10 @@ function getMultiSelectValue(id) {
 
 // Build the enhanced novel prompt
 function buildPrompt() {
-    let prompt = `SYSTEM PRIME DIRECTIVE: You are a precision-engineered novel generation system with advanced context management capabilities. Your directive is to generate a high-quality novel of exactly ${MEDIUM_TOKEN_TARGET} tokens while maintaining perfect context and narrative coherence throughout the entire length.
+    let prompt = `SYSTEM PRIME DIRECTIVE: You are a precision-engineered novel generation system with advanced context management capabilities. Your directive is to generate a high-quality novel of exactly ${o1_TOKEN_TARGET} tokens while maintaining perfect context and narrative coherence throughout the entire length. Use the included chosen parameters by the user to create the story in accordance with the token target of ${o1_TOKEN_TARGET}.
 
 STRUCTURAL REQUIREMENTS:
-1. Divide the novel into 6-8 well-structured chapters
+1. Divide the novel into 10-12 well-structured chapters
 2. Begin each chapter with "Chapter X: [Chapter Title]"
 3. Maintain consistent narrative threads throughout
 4. End each chapter with a clear connection to the next
@@ -954,10 +954,10 @@ CONTEXT MANAGEMENT PROTOCOL:
    - Maintain thematic resonance
 
 TOKEN DISTRIBUTION GUIDELINES:
-- Introduction/Setup (Chapters 1-2): ~2500 tokens
-- Rising Action (Chapters 3-4): ~2500 tokens
-- Climax Build-up (Chapters 5-6): ~2500 tokens
-- Climax and Resolution (Chapters 7-8): ~2500 tokens\n\n`;
+- Introduction/Setup (Chapters 1-3): 4000 tokens
+- Rising Action (Chapters 4-6): 6000 tokens
+- Climax Build-up (Chapters 7-9): 8000 tokens
+- Climax and Resolution (Chapters 10-12): 7000 tokens\n\n`;
 
     // Handle basic settings
     const basicSettings = {
@@ -1099,8 +1099,8 @@ async function createStory() {
             },
             body: JSON.stringify({ 
                 prompt,
-                maxTokens: MEDIUM_TOKEN_MAX,
-                targetTokens: MEDIUM_TOKEN_TARGET
+                maxTokens: o1_TOKEN_MAX,
+                targetTokens: o1_TOKEN_TARGET
             }),
             signal: controller.signal
         });
