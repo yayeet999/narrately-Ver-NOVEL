@@ -937,11 +937,11 @@ $(document).ready(function() {
 
 // Novel-specific constants optimized for o1-preview
 const o1_TOKEN_TARGET = 25000;
-const o1_TOKEN_MAX = 25500;
+const o1_TOKEN_MAX = 28000;
 const GENERATION_TIMEOUT = 480000; // 8 minutes
 const MIN_CHAPTERS = 7;
 const MAX_CHAPTERS = 20;
-const MIN_TOKENS = 1000;
+const MIN_TOKENS = 25000;
 const CHUNK_SIZE = 5000; // For text processing
 const MAX_PROMPT_LENGTH = 6500;
 
@@ -988,7 +988,15 @@ function getMultiSelectValue(id) {
 
 // O1-optimized prompt building
 function buildPrompt() {
-    let prompt = `Generate a complete, high-quality novel of exactly ${o1_TOKEN_TARGET} tokens in a single response. This is NOT a request for an outline or multi-step process. Maintain perfect context and narrative coherence throughout.
+    let prompt = `Generate a complete novel of EXACTLY ${o1_TOKEN_TARGET} tokens (between ${o1_TOKEN_TARGET - 500} and ${o1_TOKEN_MAX} tokens). This is a strict requirement. This is NOT a request for an outline or multi-step process. Maintain perfect context and narrative coherence throughout.
+    
+CRITICAL LENGTH REQUIREMENTS:
+- Minimum length: ${o1_TOKEN_TARGET - 500} tokens
+- Target length: ${o1_TOKEN_TARGET} tokens
+- Maximum length: ${o1_TOKEN_MAX} tokens
+- Do NOT end the story early
+- Do NOT summarize or shorten the narrative
+- Generate the FULL requested length
 
 CORE REQUIREMENTS:
 - Ensure exact token count of ${o1_TOKEN_TARGET}
