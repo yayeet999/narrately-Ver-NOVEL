@@ -70,7 +70,7 @@ export default async function handler(req, res) {
 
         const controller = new AbortController();
 
-        const timeoutId = setTimeout(() => controller.abort(), 300000);
+        const timeoutId = setTimeout(() => controller.abort(), 480000);
 
 
 
@@ -102,7 +102,7 @@ export default async function handler(req, res) {
 
                 ],
 
-                max_completion_tokens: Math.min(parseInt(maxTokens) || 2000, 15000),  // Use max_completion_tokens
+                max_completion_tokens: Math.min(parseInt(maxTokens) || 25000, 65536),
 
             }),
 
