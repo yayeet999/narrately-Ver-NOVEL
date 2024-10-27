@@ -2,7 +2,7 @@
   "version": 2,
   "name": "narrately-novel-real",
   "functions": {
-    "api/o1_structure": {
+    "api/o1_structure.js": {
       "memory": 2048,
       "maxDuration": 480
     }
@@ -18,7 +18,5 @@
       "dest": "/index.html"
     }
   ],
-  "env": {
-    "OPENAI_API_KEY": "@openai_api_key"
   }
 }
