@@ -887,7 +887,7 @@ $(document).ready(function() {
     });
 });
 
-// Enhanced novel-specific constants
+// Novel-specific constants optimized for o1-preview
 const o1_TOKEN_TARGET = 25000;
 const o1_TOKEN_MAX = 25500;
 const GENERATION_TIMEOUT = 480000; // 8 minutes
@@ -895,13 +895,14 @@ const MIN_CHAPTERS = 10;
 const MAX_CHAPTERS = 12;
 const MIN_TOKENS = 1000;
 const CHUNK_SIZE = 5000; // For text processing
+const MAX_PROMPT_LENGTH = 6500;
 
 // Token distribution map for validation
 const TOKEN_DISTRIBUTION = {
-    introduction: { start: 0, target: 4000 },
-    risingAction: { start: 4000, target: 6000 },
-    climaxBuild: { start: 10000, target: 8000 },
-    resolution: { start: 18000, target: 7000 }
+    introduction: { tokens: 4000, chapters: '1-3' },
+    risingAction: { tokens: 6000, chapters: '4-6' },
+    climaxBuild: { tokens: 8000, chapters: '7-9' },
+    resolution: { tokens: 7000, chapters: '10-12' }
 };
 
 // Get values from form fields with enhanced error checking
@@ -910,7 +911,6 @@ function getValue(id, isSlider = false) {
     if (!element) return null;
     
     const value = element.value;
-    
     if (!value || value === '' || value === 'Let Narrately Decide') {
         return isSlider ? 3 : null;
     }
@@ -918,7 +918,7 @@ function getValue(id, isSlider = false) {
     return value;
 }
 
-// Get default values for empty fields with novel-appropriate defaults
+// Get default values for empty fields
 function getDefaultValue(category) {
     const defaults = {
         'narrative-style': 'descriptive',
@@ -938,38 +938,41 @@ function getMultiSelectValue(id) {
     return values && values.length > 0 ? values : null;
 }
 
-// Enhanced prompt building with validation
+// O1-optimized prompt building
 function buildPrompt() {
-    let prompt = `SYSTEM PRIME DIRECTIVE: You are a precision-engineered novel generation system with advanced context management capabilities. Your directive is to generate a high-quality novel of exactly ${o1_TOKEN_TARGET} tokens while maintaining perfect context and narrative coherence throughout the entire length. Use the included chosen parameters by the user to create the story in accordance with the token target of ${o1_TOKEN_TARGET}.
+    let prompt = `Generate a high-quality novel of exactly ${o1_TOKEN_TARGET} tokens using these parameters. Maintain perfect context and narrative coherence throughout.
 
-STRUCTURAL REQUIREMENTS:
+CORE REQUIREMENTS:
+- Ensure exact token count of ${o1_TOKEN_TARGET}
+- Use advanced context management
+- Create deeply engaging narrative flow
+- Follow all parameters precisely
+
+NOVEL STRUCTURE:
 1. Divide the novel into ${MIN_CHAPTERS}-${MAX_CHAPTERS} well-structured chapters
 2. Begin each chapter with "Chapter X: [Chapter Title]"
-3. Maintain consistent narrative threads throughout
+3. Maintain consistent narrative threads
 4. End each chapter with a clear connection to the next
 
-CONTEXT MANAGEMENT PROTOCOL:
-1. Before generating each chapter:
-   - Review the overall plot arc
+CONTEXT GUIDELINES:
+1. Before each chapter:
+   - Review the plot arc
    - Check character continuity
    - Verify setting consistency
-   - Ensure thematic coherence
 2. During chapter generation:
-   - Maintain character voice consistency
-   - Track and reference previous events naturally
-   - Develop plot points progressively
-   - Balance description, dialogue, and action
+   - Maintain character voices
+   - Reference previous events naturally
+   - Develop plot progressively
 3. After each chapter:
    - Verify narrative consistency
-   - Check for plot holes
-   - Ensure character development progression
-   - Maintain thematic resonance
+   - Resolve plot threads
+   - Progress character development
 
-TOKEN DISTRIBUTION GUIDELINES:
-- Introduction/Setup (Chapters 1-3): ${TOKEN_DISTRIBUTION.introduction.target} tokens
-- Rising Action (Chapters 4-6): ${TOKEN_DISTRIBUTION.risingAction.target} tokens
-- Climax Build-up (Chapters 7-9): ${TOKEN_DISTRIBUTION.climaxBuild.target} tokens
-- Climax and Resolution (Chapters 10-12): ${TOKEN_DISTRIBUTION.resolution.target} tokens\n\n`;
+TOKEN DISTRIBUTION:
+- Chapters 1-3: ${TOKEN_DISTRIBUTION.introduction.tokens} tokens - Setup and Introduction
+- Chapters 4-6: ${TOKEN_DISTRIBUTION.risingAction.tokens} tokens - Rising Action
+- Chapters 7-9: ${TOKEN_DISTRIBUTION.climaxBuild.tokens} tokens - Climax Build-up
+- Chapters 10-12: ${TOKEN_DISTRIBUTION.resolution.tokens} tokens - Climax and Resolution\n\n`;
 
     // Handle basic settings
     const basicSettings = {
@@ -1009,7 +1012,7 @@ TOKEN DISTRIBUTION GUIDELINES:
         };
 
         if (Object.values(characterData).some(value => value !== null)) {
-            prompt += `\nCHARACTER ${charNum} PROFILE:\n`;
+            prompt += `\nCHARACTER ${charNum}:\n`;
             for (const [key, value] of Object.entries(characterData)) {
                 if (value !== null) {
                     prompt += `${key}: ${value}\n`;
@@ -1018,12 +1021,12 @@ TOKEN DISTRIBUTION GUIDELINES:
         }
     }
 
-    // Add character data for up to 3 characters
+    // Add character data
     addCharacterData(1);
     addCharacterData(2);
     addCharacterData(3);
 
-    // Handle advanced settings with improved structure
+    // Handle advanced settings
     const advancedSettings = {
         'Story Plot': getValue('story-plot'),
         'Opening Scene': getValue('opening-scene'),
@@ -1043,7 +1046,7 @@ TOKEN DISTRIBUTION GUIDELINES:
     };
 
     if (Object.values(advancedSettings).some(value => value !== null)) {
-        prompt += '\nADVANCED NOVEL SETTINGS:\n';
+        prompt += '\nADVANCED SETTINGS:\n';
         for (const [key, value] of Object.entries(advancedSettings)) {
             if (value !== null) {
                 if (Array.isArray(value)) {
@@ -1055,39 +1058,36 @@ TOKEN DISTRIBUTION GUIDELINES:
         }
     }
 
-    prompt += `\nQUALITY CONTROL DIRECTIVES:
-1. Take your time to plan and structure the complete narrative
-2. Focus on quality over speed - utilize the full processing time available
-3. Ensure each sentence adds value to the story
-4. Maintain consistent pacing throughout
-5. Avoid repetition and filler content
-6. Keep character motivations and actions consistent
-7. Track and resolve all subplot threads
+    prompt += `\nQUALITY STANDARDS:
+1. Plan and structure the complete narrative
+2. Focus on quality over speed
+3. Ensure each sentence adds value
+4. Maintain consistent pacing
+5. Avoid repetition and filler
+6. Keep character motivations consistent
+7. Track and resolve all subplots
 
-CRITICAL RULES:
-1. NEVER rush the ending or lose context
-2. NEVER generate filler content to meet token count
-3. NEVER introduce plot elements without proper resolution
-4. MAINTAIN consistent quality from start to finish
-5. ENSURE every chapter advances the story meaningfully\n`;
+CORE RULES:
+1. Do not rush the ending
+2. No filler content
+3. Resolve all plot elements
+4. Maintain quality throughout
+5. Advance story in every chapter\n`;
 
     return prompt;
 }
 
-// Enhanced story validation
+// Story validation optimized for o1-preview
 function validateStory(story) {
-    // Check minimum length
     if (!story || story.length < MIN_TOKENS) {
         throw new Error('Generated story is too short');
     }
 
-    // Validate chapter structure
     const chapters = story.match(/Chapter \d+/g);
     if (!chapters || chapters.length < MIN_CHAPTERS || chapters.length > MAX_CHAPTERS) {
         throw new Error(`Invalid chapter count: ${chapters ? chapters.length : 0}`);
     }
 
-    // Estimate token count (rough approximation)
     const estimatedTokens = story.split(/\s+/).length * 1.3;
     if (estimatedTokens > o1_TOKEN_MAX) {
         throw new Error(`Token limit exceeded: ${Math.floor(estimatedTokens)} tokens generated`);
@@ -1108,7 +1108,7 @@ function processLargeText(text) {
 
     return chunks.map(chunk => 
         chunk
-            .replace(/Chapter \d+:?\s*([^\n]+)?/g, match => {
+            .replace(/Chapter \d+:?\s*([^\n]+)?/g, (match) => {
                 const [chapter, title] = match.split(':').map(s => s.trim());
                 return `<h2 class="chapter-title">${chapter}${title ? ': ' + title : ''}</h2>`;
             })
@@ -1123,16 +1123,13 @@ async function createStory() {
     const spinner = document.getElementById('spinner');
     const storyOutput = document.getElementById('storyOutput');
 
-    if (createButton.disabled) {
-        return;
-    }
+    if (createButton.disabled) return;
 
-    // Clear any previous content
     storyOutput.innerHTML = `
         <div class="generation-status">
             <p>📝 Initiating story generation...</p>
-            <p>⚠️ This process will take several minutes as the AI carefully crafts your story.</p>
-            <p>⏳ Please wait while we ensure quality and consistency throughout the novel.</p>
+            <p>⚠️ This process will take several minutes as the AI crafts your story.</p>
+            <p>⏳ Please wait while we ensure quality and consistency.</p>
         </div>
     `;
     
@@ -1141,6 +1138,12 @@ async function createStory() {
 
     try {
         const prompt = buildPrompt();
+        
+        // O1-specific prompt validation
+        if (prompt.length > MAX_PROMPT_LENGTH) {
+            throw new Error('Prompt exceeds maximum allowed length for o1-preview model');
+        }
+
         const apiUrl = window.location.hostname === 'localhost' 
             ? '/api/generate'
             : `${window.location.origin}/api/generate`;
@@ -1174,10 +1177,7 @@ async function createStory() {
             throw new Error('No story was generated');
         }
 
-        // Validate story structure and content
         validateStory(data.story);
-
-        // Process large text in chunks
         const formattedStory = processLargeText(data.story);
 
         storyOutput.innerHTML = `
@@ -1239,14 +1239,12 @@ async function copyStory() {
         alert('Unable to copy novel. Please try selecting and copying manually.');
     }
 }
-
-// Enhanced download function with streaming
+    // Enhanced download function with streaming
 function downloadStory() {
     const storyText = document.querySelector('.story-text').innerText;
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
     const filename = `generated-novel-${timestamp}.txt`;
 
-    // Create blob stream
     const stream = new ReadableStream({
         start(controller) {
             const encoder = new TextEncoder();
