@@ -1,15 +1,15 @@
 {
   "version": 2,
   "functions": {
-    "api/generate.js": {
+    "api/o1_structure.js": {
       "memory": 2048,
       "maxDuration": 300
     }
   },
   "routes": [
     { 
-      "src": "/api/generate",
-      "dest": "/api/generate.js",
+      "src": "/api/o1_structure",
+      "dest": "/api/o1_structure.js",
       "methods": ["POST", "OPTIONS"],
       "headers": {
         "Access-Control-Allow-Origin": "*",
