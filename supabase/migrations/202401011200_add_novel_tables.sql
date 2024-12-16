@@ -1,3 +1,18 @@
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "novels_select" ON novels;
+DROP POLICY IF EXISTS "novels_insert" ON novels;
+DROP POLICY IF EXISTS "novels_update" ON novels;
+DROP POLICY IF EXISTS "novels_delete" ON novels;
+DROP POLICY IF EXISTS "chapters_select" ON novel_chapters;
+DROP POLICY IF EXISTS "chapters_insert" ON novel_chapters;
+DROP POLICY IF EXISTS "chapters_update" ON novel_chapters;
+DROP POLICY IF EXISTS "chapters_delete" ON novel_chapters;
+DROP POLICY IF EXISTS "state_select" ON novel_generation_states;
+DROP POLICY IF EXISTS "state_insert" ON novel_generation_states;
+DROP POLICY IF EXISTS "state_update" ON novel_generation_states;
+DROP POLICY IF EXISTS "state_delete" ON novel_generation_states;
+
+-- Create tables if they don't exist
 CREATE TABLE IF NOT EXISTS novels (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users (id) ON DELETE CASCADE,
@@ -26,10 +41,12 @@ CREATE TABLE IF NOT EXISTS novel_generation_states (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Enable RLS
 ALTER TABLE novels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE novel_chapters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE novel_generation_states ENABLE ROW LEVEL SECURITY;
 
+-- Create new policies
 CREATE POLICY "novels_select" ON novels FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "novels_insert" ON novels FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "novels_update" ON novels FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);

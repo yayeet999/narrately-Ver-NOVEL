@@ -12,9 +12,16 @@ const CreateNovel: React.FC = () => {
  const [isGenerated, setIsGenerated] = useState<boolean>(false);
 
  const generateNovelMutation = useMutation(async (params: NovelParameters) => {
+   const { data: userData, error: userError } = await supabase.auth.getUser();
+   if (userError) throw new Error('Authentication required');
+
    const { data, error } = await supabase
      .from('novels')
-     .insert([{ ...params }])
+     .insert([{
+       title: params.title || 'Untitled Novel',
+       parameters: params,
+       user_id: userData.user.id
+     }])
      .select('id')
      .single();
 

@@ -1,3 +1,9 @@
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "temp_data_select" ON temp_novel_data;
+DROP POLICY IF EXISTS "temp_data_insert" ON temp_novel_data;
+DROP POLICY IF EXISTS "temp_data_update" ON temp_novel_data;
+DROP POLICY IF EXISTS "temp_data_delete" ON temp_novel_data;
+
 CREATE TABLE IF NOT EXISTS temp_novel_data (
  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
  novel_id UUID REFERENCES novels(id) ON DELETE CASCADE,
