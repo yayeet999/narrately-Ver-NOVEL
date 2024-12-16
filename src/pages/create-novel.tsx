@@ -10,18 +10,19 @@ import { supabase } from '../integrations/supabase/client';
 const CreateNovel: React.FC = () => {
   const [novelId, setNovelId] = useState<string>('');
   const [isGenerated, setIsGenerated] = useState<boolean>(false);
+  const [lastParams, setLastParams] = useState<NovelParameters | null>(null);
 
   const generateNovelMutation = useMutation(async (params: NovelParameters) => {
     try {
       const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError) throw new Error('Authentication required');
+      if (userError || !userData.user) throw new Error('Authentication required');
 
       const { data: novel, error: novelError } = await supabase
         .from('novels')
         .insert([{ 
           title: params.title || 'Untitled Novel',
           parameters: params,
-          user_id: userData.user?.id
+          user_id: userData.user.id
         }])
         .select('id')
         .single();
@@ -47,30 +48,55 @@ const CreateNovel: React.FC = () => {
         .single();
 
       if (stateError) {
+        // Cleanup if state creation fails
         await supabase.from('novels').delete().eq('id', novel.id);
         Logger.error('State creation error:', stateError);
         throw new Error(`Failed to create generation state: ${stateError.message}`);
       }
 
       Logger.info('Generation state created');
-      return novel.id;
+      return { novelId: novel.id, params };
     } catch (error: any) {
       Logger.error('Novel creation error:', error);
       throw error;
     }
   }, {
-    onSuccess: (id:string) => {
-      setNovelId(id);
+    onSuccess: async ({ novelId, params }) => {
+      setNovelId(novelId);
       setIsGenerated(true);
-      Logger.info(`Novel gen initiated ${id}`);
+      Logger.info(`Novel record created ${novelId}`);
+
+      // Now trigger the actual generation process via API route
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        alert("User authentication required.");
+        return;
+      }
+
+      const response = await fetch('/api/generate-novel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          user_id: userData.user.id,
+          parameters: params
+        })
+      });
+
+      const result = await response.json();
+      if (result.error) {
+        alert(`Generation error: ${result.error}`);
+      } else {
+        Logger.info('Novel generation triggered:', result.novelId);
+      }
     },
-    onError: (error:any) => {
-      Logger.error('Gen initiation error:',error);
+    onError: (error: any) => {
+      Logger.error('Gen initiation error:', error);
       alert(`Error: ${error.message}`);
     }
   });
 
   const handleFormSubmit = (params: NovelParameters) => {
+    setLastParams(params);
     generateNovelMutation.mutate(params);
   };
 
