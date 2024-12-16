@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   output: 'export',
-  distDir: 'public',
+  distDir: '.next',
   images: {
     unoptimized: true
   },
