@@ -32,22 +32,26 @@ const CreateNovel: React.FC = () => {
      }
 
      // Create the generation state record
-     const { error: stateError } = await supabase
+     const { data: stateData, error: stateError } = await supabase
        .from('novel_generation_states')
        .insert([{
          novel_id: novel.id,
-         current_chapter: 0,
+         current_chapt: 0,
          total_chapters: 0,
          status: 'pending',
          error_message: null
-       }]);
+       }])
+       .select()
+       .single();
 
      if (stateError) {
        // If state creation fails, clean up the novel
        await supabase.from('novels').delete().eq('id', novel.id);
+       Logger.error('State creation error:', stateError);
        throw new Error(`Failed to create generation state: ${stateError.message}`);
      }
 
+     Logger.info('Generation state created:', stateData);
      return novel.id;
    } catch (error: any) {
      Logger.error('Novel creation error:', error);

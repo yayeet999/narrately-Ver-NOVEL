@@ -18,7 +18,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ novelId }) => {
      try {
        const { data, error } = await supabase
          .from('novel_generation_states')
-         .select('current_chapter, total_chapters, status, error_message')
+         .select('current_chapt, total_chapters, status, error_message')
          .eq('novel_id', novelId)
          .maybeSingle();
 
@@ -29,12 +29,15 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ novelId }) => {
          return;
        }
 
+       Logger.info('Progress data:', data);
+
        if (data) {
-         setCurrentChapter(data.current_chapter || 0);
+         setCurrentChapter(data.current_chapt || 0);
          setTotalChapters(data.total_chapters || 0);
          setStatus(data.status || 'pending');
          setErrorMessage(data.error_message || '');
        } else {
+         Logger.warn('No generation state found for novel:', novelId);
          setCurrentChapter(0);
          setTotalChapters(0);
          setStatus('pending');
