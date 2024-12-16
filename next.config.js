@@ -1,12 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  trailingSlash: true,
   output: 'export',
   distDir: '.next',
   images: {
     unoptimized: true
   },
-  swcMinify: true
+  swcMinify: true,
+  // Indicate that we're running on Vercel
+  env: {
+    VERCEL: process.env.VERCEL
+  }
 }
 
 module.exports = nextConfig 
