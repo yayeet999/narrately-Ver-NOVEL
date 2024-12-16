@@ -8,9 +8,11 @@ const nextConfig = {
     unoptimized: true
   },
   swcMinify: true,
-  // Indicate that we're running on Vercel
   env: {
-    VERCEL: process.env.VERCEL
+    VERCEL: process.env.VERCEL,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY
   }
 }
 

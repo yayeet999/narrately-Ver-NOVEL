@@ -1,17 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
 import { Logger } from '../../services/utils/Logger';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!SUPABASE_URL) {
-  Logger.error('SUPABASE_URL not set.');
-  throw new Error('SUPABASE_URL is required.');
+if (!process.env.SUPABASE_URL) {
+  throw new Error('SUPABASE_URL is required');
 }
 
-if (!SUPABASE_KEY) {
-  Logger.error('NEXT_PUBLIC_SUPABASE_ANON_KEY not set.');
-  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required.');
+if (!process.env.SUPABASE_ANON_KEY) {
+  throw new Error('SUPABASE_ANON_KEY is required');
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY); 
+export const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY,
+  {
+    auth: {
+      persistSession: false
+    }
+  }
+);
+
+// Add error handling for the Supabase client
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT') {
+    Logger.warn('User signed out');
+  } else if (event === 'SIGNED_IN') {
+    Logger.info('User signed in');
+  }
+});
+  
