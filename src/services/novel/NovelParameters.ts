@@ -8,6 +8,41 @@ export interface Character {
  relationships: string[];
 }
 
+export type StoryStructure = 
+  | "Hero's Journey"
+  | "Three-Act Structure"
+  | "Nonlinear"
+  | "Parallel"
+  | "Episodic"
+  | "Circular"
+  | "Framing Device"
+  | "In Medias Res";
+
+export type ConflictType = 
+  | "person_vs_person"
+  | "person_vs_nature"
+  | "person_vs_society"
+  | "person_vs_self"
+  | "person_vs_technology"
+  | "person_vs_fate";
+
+export type ResolutionStyle = 
+  | "Conclusive"
+  | "Open-Ended"
+  | "Twist"
+  | "Circular"
+  | "Bittersweet";
+
+export type SettingType = 
+  | "Fantasy"
+  | "Urban"
+  | "Historical"
+  | "Futuristic"
+  | "Contemporary"
+  | "Post-Apocalyptic"
+  | "Space"
+  | "Rural";
+
 export interface NovelParameters {
  title?: string;
  novel_length: '50k-100k' | '100k-150k' | '150k+';
@@ -19,7 +54,7 @@ export interface NovelParameters {
  primary_theme: string;
  secondary_theme?: string;
  characters: Character[];
- setting_type: string;
+ setting_type: SettingType;
  world_complexity: number;
  cultural_depth: number;
  cultural_framework: string;
@@ -27,9 +62,9 @@ export interface NovelParameters {
  tone_formality: number;
  tone_descriptive: number;
  dialogue_balance: number;
- story_structure: string;
- conflict_types: string[];
- resolution_style: string;
+ story_structure: StoryStructure;
+ conflict_types: ConflictType[];
+ resolution_style: ResolutionStyle;
  description_density: number;
  pacing_overall: number;
  pacing_variance: number;
@@ -79,7 +114,7 @@ export const CharacterArchetypes = [
   'The Sage'
 ];
 
-export const SettingOptions = [
+export const SettingOptions: SettingType[] = [
   'Fantasy',
   'Urban',
   'Historical',
@@ -90,7 +125,7 @@ export const SettingOptions = [
   'Rural'
 ];
 
-export const ConflictTypeOptions = [
+export const ConflictTypeOptions: ConflictType[] = [
   'person_vs_person',
   'person_vs_nature',
   'person_vs_society',
@@ -99,7 +134,7 @@ export const ConflictTypeOptions = [
   'person_vs_fate'
 ];
 
-export const ResolutionStyleOptions = [
+export const ResolutionStyleOptions: ResolutionStyle[] = [
   'Conclusive',
   'Open-Ended',
   'Twist',
