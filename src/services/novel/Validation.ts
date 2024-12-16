@@ -1,6 +1,6 @@
 // src/services/novel/Validation.ts
 
-import { NovelParameters, Genre, Theme } from './NovelParameters';
+import { NovelParameters } from './NovelParameters';
 import { Logger } from '../utils/Logger';
 
 /**
@@ -60,7 +60,14 @@ export function validateAndFillDefaults(params: Partial<NovelParameters>): Novel
     secondary_genre: params.secondary_genre,
     primary_theme: params.primary_theme || 'Coming of Age',
     secondary_theme: params.secondary_theme,
-    characters: params.characters || [],
+    characters: params.characters || [{
+      role: 'protagonist',
+      archetype: 'The Hero',
+      age_range: 'young adult',
+      background_archetype: 'ordinary world',
+      arc_type: 'coming_of_age',
+      relationships: []
+    }],
     setting_type: params.setting_type || 'Contemporary',
     world_complexity: params.world_complexity || 3,
     cultural_depth: params.cultural_depth || 3,

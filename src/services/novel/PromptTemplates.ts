@@ -1,7 +1,7 @@
 import { NovelParameters } from './NovelParameters';
 
 export function outlinePrompt(params: NovelParameters, integrationNotes: string): string {
- return `
+  return `
 ${integrationNotes}
 
 You are a world-class author creating a detailed, world-class novel outline based on the following parameters.
@@ -9,19 +9,39 @@ You are a world-class author creating a detailed, world-class novel outline base
 ${parametersAsText(params)}
 
 Your task:
-- Produce a very detailed outline covering the entire novel, from start to end.
+- Produce a very detailed outline for the entire novel.
 - Indicate exactly how many chapters there will be.
 - Describe each chapter's key events, character developments, conflicts, and thematic progressions.
-- Ensure the outline sets the stage for a narrative of world-class literary quality, rich in complexity, emotional depth, and thematic resonance.
+- Ensure the outline sets the stage for a narrative of high quality, rich complexity, emotional depth, and thematic resonance.
+`;
+}
+
+export function outlineRefinementPrompt(params: NovelParameters, currentOutline: string, passNumber: number): string {
+  return `
+You have an existing novel outline (below). This is Outline Refinement Pass #${passNumber}.
+Your goal: Improve and refine the outline further based on parameters and instructions.
+
+Focus on:
+- Adding more depth to character arcs, emotional states, thematic progressions.
+- For pass #1: Enhance detail, clarify pacing, add emotional beats, subplots, thematic checkpoints.
+- For pass #2: Add even finer detail on character relationships, subtle foreshadowing, cultural/world richness, and ensuring structural integrity matches the desired story structure.
+
+Current Outline:
+${currentOutline}
+
+Parameters:
+${parametersAsText(params)}
+
+Refine this outline again. Output the improved outline.
 `;
 }
 
 export function chapterDraftPrompt(params: NovelParameters, outlineSegment: string, previousChapters: string[], chapterNumber: number, integrationNotes: string): string {
- const prevChaps = previousChapters.map((ch, i) => `CHAPTER ${i + 1}:\n${ch}\n`).join('\n');
- return `
+  const prevChaps = previousChapters.map((ch, i) => `CHAPTER ${i + 1}:\n${ch}\n`).join('\n');
+  return `
 ${integrationNotes}
 
-You are continuing to write a top-tier novel following the given outline and parameters. Before producing the chapter, perform a chain-of-thought reasoning step internally. Output only the chapter text as the final answer.
+You are continuing to write a top-tier novel following the given outline and parameters. Think internally, then produce only the final chapter text.
 
 Context:
 - This is Chapter ${chapterNumber}.
@@ -31,26 +51,27 @@ ${outlineSegment}
 Previously written chapters (for continuity):
 ${prevChaps || 'None so far'}
 
-Parameters (reiterated for clarity):
+Parameters:
 ${parametersAsText(params)}
 
 INSTRUCTIONS:
-1. Think through the plot details (internally).
-2. Produce a single, coherent chapter text that matches style, theme, narrative quality (~${params.average_chapter_length} words).
-3. NO explanations in final output. Just final polished chapter text.
+1. Think internally about coherence and quality (no need to output reasoning).
+2. Produce a single, coherent chapter text (~${params.average_chapter_length} words).
+3. Output only the final polished chapter text, no extra explanation.
 `;
 }
 
 export function comparisonPrompt(draftA: string, draftB: string): string {
- return `
-You have two chapter drafts (Draft A and Draft B) for the same chapter. Your task:
-- Compare both drafts.
-- Identify which is superior in narrative coherence, thematic depth, character consistency, instructions alignment.
-- If one is clearly better, choose it.
-- If both have strengths, propose a refined combined version.
-- End with "CHOSEN: Draft A", "CHOSEN: Draft B", or "CHOSEN: Refined Version Needed".
-- If "Refined Version Needed", provide improvement instructions.
+  return `
+You have two chapter drafts (Draft A and Draft B) for the same chapter. Compare them:
+- Identify strengths/weaknesses in coherence, thematic depth, character consistency.
+- Decide which is superior. If both have strengths, propose a refined combined version.
 
+At the end:
+- If Draft A is best: "CHOSEN: Draft A"
+- If Draft B is best: "CHOSEN: Draft B"
+- If need a combined refinement: "CHOSEN: Refined Version Needed" and provide improvement instructions.
+  
 Draft A:
 ${draftA}
 
@@ -60,10 +81,10 @@ ${draftB}
 }
 
 export function refinementPrompt(chosenDraft: string, critique: string, integrationNotes: string): string {
- return `
+  return `
 ${integrationNotes}
 
-You must now produce a refined version of the chapter based on the critique and improvement instructions:
+You must rewrite the selected chapter draft based on the critique below.
 
 Selected Draft:
 ${chosenDraft}
@@ -71,12 +92,28 @@ ${chosenDraft}
 Critique / Instructions:
 ${critique}
 
-Rewrite the chapter, incorporating improvements. Output only the improved chapter text.
+Rewrite the chapter with improvements. Output only the improved chapter text.
 `;
 }
 
+export function chapterRefinementInstructions(passNumber: number): string {
+  if (passNumber === 1) {
+    return `Refinement Pass 1 Focus:
+- Enhance clarity, emotional resonance, characterization details, and ensure alignment with the outline.
+- Improve scene-setting, thematic consistency, and linguistic quality.
+- Adjust pacing or add missing thematic elements as needed.
+`;
+  } else {
+    return `Refinement Pass 2 Focus:
+- Further polish stylistic continuity, subtle thematic layering, dialogue flow.
+- Ensure continuity with previous chapters and desired narrative style.
+- Final polish for a coherent, high-quality chapter.
+`;
+  }
+}
+
 function parametersAsText(params: NovelParameters): string {
- return `
+  return `
 **Core**
 - Title: ${params.title || 'No Title'}
 - Length: ${params.novel_length}

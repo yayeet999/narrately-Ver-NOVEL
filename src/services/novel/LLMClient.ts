@@ -2,56 +2,77 @@ import fetch from 'node-fetch';
 import { Logger } from '../utils/Logger';
 
 interface LLMRequest {
- prompt: string;
- max_tokens: number;
- temperature: number;
+  prompt: string;
+  max_tokens: number;
+  temperature: number;
 }
 
-interface LLMResponse {
- text: string;
+interface OpenAIResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: {
+    text: string;
+    index: number;
+    finish_reason: string | null;
+  }[];
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
 }
 
 export class LLMClient {
- private apiUrl: string;
- private apiKey: string;
+  private apiKey: string;
+  private model: string;
 
- constructor(apiUrl: string, apiKey: string) {
-   this.apiUrl = apiUrl;
-   this.apiKey = apiKey;
- }
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
+    this.model = 'gpt-4o-mini'; // The chosen model name
+  }
 
- async generate(request: LLMRequest): Promise<string> {
-   try {
-     const res = await fetch(this.apiUrl, {
-       method: 'POST',
-       headers: {
-         'Authorization': `Bearer ${this.apiKey}`,
-         'Content-Type': 'application/json'
-       },
-       body: JSON.stringify(request),
-     });
+  async generate(request: LLMRequest): Promise<string> {
+    try {
+      const payload = {
+        model: this.model,
+        prompt: request.prompt,
+        max_tokens: request.max_tokens,
+        temperature: request.temperature
+      };
 
-     if (!res.ok) {
-       const errText = await res.text();
-       Logger.error(`LLM API Error: ${errText}`);
-       throw new Error(`LLM error: ${errText}`);
-     }
+      const res = await fetch('https://api.openai.com/v1/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+      });
 
-     const data: LLMResponse = await res.json();
-     return data.text.trim();
-   } catch (error) {
-     Logger.error('Error communicating with LLM:', error);
-     throw error;
-   }
- }
+      if (!res.ok) {
+        const errText = await res.text();
+        Logger.error(`OpenAI API Error: ${errText}`);
+        throw new Error(`LLM error: ${errText}`);
+      }
+
+      const data: OpenAIResponse = await res.json();
+      if (!data.choices || data.choices.length === 0) {
+        throw new Error('No completion choices returned from OpenAI.');
+      }
+
+      return data.choices[0].text.trim();
+    } catch (error) {
+      Logger.error('Error communicating with OpenAI LLM:', error);
+      throw error;
+    }
+  }
 }
 
-const LLM_API_URL = process.env.LLM_API_URL;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-if (!LLM_API_URL || !OPENAI_API_KEY) {
- Logger.error('LLM_API_URL or OPENAI_API_KEY not set.');
- process.exit(1);
+if (!OPENAI_API_KEY) {
+  throw new Error('OPENAI_API_KEY must be set.');
 }
 
-export const llm = new LLMClient(LLM_API_URL, OPENAI_API_KEY); 
+export const llm = new LLMClient(OPENAI_API_KEY); 

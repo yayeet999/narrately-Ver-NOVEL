@@ -3,13 +3,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Create Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -20,11 +18,9 @@ serve(async (req) => {
       }
     );
 
-    // Get request body
     const { novelId } = await req.json();
 
-    // Your novel generation logic here
-    // For now, just return a success response
+    // Just a placeholder function call
     return new Response(
       JSON.stringify({ 
         status: 'success',
