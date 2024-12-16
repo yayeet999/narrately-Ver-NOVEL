@@ -23,21 +23,21 @@ const CreateNovel: React.FC = () => {
    }
 
    return data.id;
-}, {
- onSuccess: (id:string) => {
-   setNovelId(id);
-   setIsGenerated(true);
-   Logger.info(`Novel gen initiated ${id}`);
- },
- onError: (error:any) => {
-   Logger.error('Gen initiation error:',error);
-   alert(`Error: ${error.message}`);
-}
-});
+ }, {
+   onSuccess: (id:string) => {
+     setNovelId(id);
+     setIsGenerated(true);
+     Logger.info(`Novel gen initiated ${id}`);
+   },
+   onError: (error:any) => {
+     Logger.error('Gen initiation error:',error);
+     alert(`Error: ${error.message}`);
+   }
+ });
 
  const handleFormSubmit = (params: NovelParameters) => {
    generateNovelMutation.mutate(params);
-};
+ };
 
  return (
    <div className="container mx-auto px-4 py-8 max-w-4xl">

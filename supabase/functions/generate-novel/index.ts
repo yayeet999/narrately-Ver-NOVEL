@@ -14,12 +14,11 @@ serve(async (req) => {
  }
 
  const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
- const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_KEY');
+ const SUPABASE_KEY = Deno.env.get('NEXT_PUBLIC_SUPABASE_ANON_KEY');
  const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 
- if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !OPENAI_API_KEY) {
-   Logger.error('Missing environment variables.');
-   return new Response(JSON.stringify({ error: 'Internal Server Error: Missing environment variables.' }), { status: 500, headers: corsHeaders });
+ if (!SUPABASE_URL || !SUPABASE_KEY || !OPENAI_API_KEY) {
+   throw new Error('Missing environment variables');
  }
 
  try {
@@ -30,7 +29,7 @@ serve(async (req) => {
      return new Response(JSON.stringify({ error: 'Missing user_id or parameters.' }), { status: 400, headers: corsHeaders });
    }
 
-   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
    const { data: subscription, error: subError } = await supabase
      .from('user_subscriptions')
      .select('*')
