@@ -6,15 +6,7 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
-  swcMinify: true,
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: '/api/:path*',
-      },
-    ];
-  },
+  swcMinify: true
 }
 
 module.exports = nextConfig 
