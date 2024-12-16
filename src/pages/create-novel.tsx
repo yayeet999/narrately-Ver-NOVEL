@@ -12,32 +12,47 @@ const CreateNovel: React.FC = () => {
  const [isGenerated, setIsGenerated] = useState<boolean>(false);
 
  const generateNovelMutation = useMutation(async (params: NovelParameters) => {
-   // Start a Supabase transaction by creating the novel first
-   const { data: novel, error: novelError } = await supabase
-     .from('novels')
-     .insert([{ ...params }])
-     .select('id')
-     .single();
+   try {
+     // Start a Supabase transaction by creating the novel first
+     const { data: novel, error: novelError } = await supabase
+       .from('novels')
+       .insert([{ 
+         ...params,
+         user_id: (await supabase.auth.getUser()).data.user?.id
+       }])
+       .select('id')
+       .single();
 
-   if (novelError) {
-     throw new Error(novelError.message);
+     if (novelError) {
+       throw new Error(novelError.message);
+     }
+
+     if (!novel) {
+       throw new Error('Failed to create novel');
+     }
+
+     // Create the generation state record
+     const { error: stateError } = await supabase
+       .from('novel_generation_states')
+       .insert([{
+         novel_id: novel.id,
+         current_chapt: 0,
+         total_chapters: 0,
+         status: 'pending',
+         error_message: null
+       }]);
+
+     if (stateError) {
+       // If state creation fails, clean up the novel
+       await supabase.from('novels').delete().eq('id', novel.id);
+       throw new Error(`Failed to create generation state: ${stateError.message}`);
+     }
+
+     return novel.id;
+   } catch (error: any) {
+     Logger.error('Novel creation error:', error);
+     throw error;
    }
-
-   // Create the generation state record
-   const { error: stateError } = await supabase
-     .from('novel_generation_states')
-     .insert([{
-       novel_id: novel.id,
-       current_chapt: 0,
-       total_chapters: 0,
-       status: 'pending'
-     }]);
-
-   if (stateError) {
-     throw new Error(stateError.message);
-   }
-
-   return novel.id;
  }, {
    onSuccess: (id:string) => {
      setNovelId(id);

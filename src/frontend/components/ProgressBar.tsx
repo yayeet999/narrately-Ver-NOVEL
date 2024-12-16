@@ -18,25 +18,32 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ novelId }) => {
      try {
        const { data, error } = await supabase
          .from('novel_generation_states')
-         .select('*')
+         .select('current_chapt, total_chapters, status, error_message')
          .eq('novel_id', novelId)
-         .single();
+         .maybeSingle();
 
        if (error) {
          Logger.error('Error fetching progress:', error);
          setErrorMessage(error.message);
+         setStatus('error');
          return;
        }
 
        if (data) {
          setCurrentChapter(data.current_chapt || 0);
          setTotalChapters(data.total_chapters || 0);
-         setStatus(data.status);
+         setStatus(data.status || 'pending');
          setErrorMessage(data.error_message || '');
+       } else {
+         setCurrentChapter(0);
+         setTotalChapters(0);
+         setStatus('pending');
+         setErrorMessage('');
        }
      } catch (err) {
        Logger.error('Unexpected error:', err);
        setErrorMessage('Unexpected error occurred');
+       setStatus('error');
      } finally {
        setIsLoading(false);
      }
