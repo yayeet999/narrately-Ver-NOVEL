@@ -1,24 +1,18 @@
 {
   "version": 2,
-  "buildCommand": "next build",
-  "outputDirectory": ".next/out",
   "framework": "nextjs",
+  "buildCommand": "next build",
+  "devCommand": "next dev",
+  "installCommand": "npm install",
+  "outputDirectory": ".next",
   "routes": [
     {
-      "src": "^/api/(.*)$",
+      "src": "/api/(.*)",
       "dest": "/api/$1",
       "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
       "headers": {
         "Access-Control-Allow-Origin": "*"
       }
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1",
-      "continue": true
     }
   ]
 } 
