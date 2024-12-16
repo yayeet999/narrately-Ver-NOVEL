@@ -36,7 +36,7 @@ const CreateNovel: React.FC = () => {
        .from('novel_generation_states')
        .insert([{
          novel_id: novel.id,
-         current_chapt: 0,
+         current_chapter: 0,
          total_chapters: 0,
          status: 'pending',
          error_message: null
