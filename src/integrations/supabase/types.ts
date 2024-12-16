@@ -1,0 +1,1 @@
+// Define Supabase types if needed 
