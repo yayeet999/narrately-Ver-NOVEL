@@ -65,13 +65,15 @@ export class CheckpointManager {
 
    const { error: tempError } = await supabase
      .from('temp_novel_data')
-     .upsert({
-       novel_id: novelId,
-       data_type: `chapter_${chapterNumber}_content`,
-       content: content,
-       metadata: { chapter_number: chapterNumber }
-     })
-     .onConflict('novel_id,data_type');
+     .upsert(
+       {
+         novel_id: novelId,
+         data_type: `chapter_${chapterNumber}_content`,
+         content: content,
+         metadata: { chapter_number: chapterNumber }
+       },
+       { onConflict: 'novel_id,data_type' }
+     );
 
    if (tempError) {
      Logger.error(`Error storing temp data chapter ${chapterNumber} ${novelId}:`, tempError);
@@ -84,13 +86,15 @@ export class CheckpointManager {
  static async storeOutline(novelId: string, outline: string): Promise<void> {
    const { error } = await supabase
      .from('temp_novel_data')
-     .upsert({
-       novel_id: novelId,
-       data_type: 'outline',
-       content: outline,
-       metadata: {}
-     })
-     .onConflict('novel_id,data_type');
+     .upsert(
+       {
+         novel_id: novelId,
+         data_type: 'outline',
+         content: outline,
+         metadata: {}
+       },
+       { onConflict: 'novel_id,data_type' }
+     );
 
    if (error) {
      Logger.error(`Error storing outline ${novelId}:`, error);
@@ -102,13 +106,15 @@ export class CheckpointManager {
  static async storeDraft(novelId: string, chapterNumber: number, draftType: string, content: string): Promise<void> {
    const { error } = await supabase
      .from('temp_novel_data')
-     .upsert({
-       novel_id: novelId,
-       data_type: `chapter_${chapterNumber}_${draftType}`,
-       content: content,
-       metadata: { chapter_number: chapterNumber, draft_type: draftType }
-     })
-     .onConflict('novel_id,data_type');
+     .upsert(
+       {
+         novel_id: novelId,
+         data_type: `chapter_${chapterNumber}_${draftType}`,
+         content: content,
+         metadata: { chapter_number: chapterNumber, draft_type: draftType }
+       },
+       { onConflict: 'novel_id,data_type' }
+     );
 
    if (error) {
      Logger.error(`Error storing ${draftType} for Ch${chapterNumber} ${novelId}:`, error);
