@@ -12,17 +12,32 @@ const CreateNovel: React.FC = () => {
  const [isGenerated, setIsGenerated] = useState<boolean>(false);
 
  const generateNovelMutation = useMutation(async (params: NovelParameters) => {
-   const { data, error } = await supabase
+   // Start a Supabase transaction by creating the novel first
+   const { data: novel, error: novelError } = await supabase
      .from('novels')
      .insert([{ ...params }])
      .select('id')
      .single();
 
-   if (error) {
-     throw new Error(error.message);
+   if (novelError) {
+     throw new Error(novelError.message);
    }
 
-   return data.id;
+   // Create the generation state record
+   const { error: stateError } = await supabase
+     .from('novel_generation_states')
+     .insert([{
+       novel_id: novel.id,
+       current_chapt: 0,
+       total_chapters: 0,
+       status: 'pending'
+     }]);
+
+   if (stateError) {
+     throw new Error(stateError.message);
+   }
+
+   return novel.id;
  }, {
    onSuccess: (id:string) => {
      setNovelId(id);
