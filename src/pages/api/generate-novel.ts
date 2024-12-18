@@ -6,14 +6,15 @@ import { Logger } from '../../services/utils/Logger';
 type Data = {
   novelId?: string;
   error?: string;
+  details?: string;
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
-  try {
-    if (req.method !== 'POST') {
-      return res.status(405).json({ error: 'Method not allowed' });
-    }
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
+  try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       Logger.warn('No access token provided in request');
@@ -30,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
       Logger.error('Supabase environment variables not set.');
-      return res.status(500).json({ error: 'Internal server error: missing Supabase config.' });
+      return res.status(500).json({ error: 'Internal server error: missing Supabase config' });
     }
 
     const supabaseServerClient = createClient(
@@ -48,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     // Check for OPENAI_API_KEY
     if (!process.env.OPENAI_API_KEY) {
       Logger.error('OPENAI_API_KEY is not set on server.');
-      return res.status(500).json({ error: 'Internal server error: missing LLM config.' });
+      return res.status(500).json({ error: 'Internal server error: missing OpenAI API key' });
     }
 
     const { novelId } = await NovelGenerator.generateNovel(user_id, parameters, supabaseServerClient);
@@ -56,8 +57,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(200).json({ novelId });
 
   } catch (unhandledError: any) {
-    // Catch any unexpected errors
     Logger.error('Unhandled error in generate-novel route:', unhandledError);
-    return res.status(500).json({ error: 'Internal server error' });
+    
+    let errorMessage = 'Internal server error';
+    let statusCode = 500;
+
+    if (unhandledError.response?.status === 504) {
+      errorMessage = 'Request timed out - please try again';
+      statusCode = 504;
+    } else if (unhandledError.response?.status === 401) {
+      errorMessage = 'Authentication error - please check your API key';
+      statusCode = 401;
+    } else if (unhandledError.response?.status === 429) {
+      errorMessage = 'Rate limit exceeded - please try again later';
+      statusCode = 429;
+    } else if (unhandledError.message) {
+      errorMessage = unhandledError.message;
+    }
+
+    return res.status(statusCode).json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? unhandledError.toString() : undefined
+    });
   }
 }
