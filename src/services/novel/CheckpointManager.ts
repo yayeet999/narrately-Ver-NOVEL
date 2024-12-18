@@ -1,9 +1,9 @@
-import { supabase } from '../../integrations/supabase/client';
 import { Logger } from '../utils/Logger';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 export class CheckpointManager {
-  static async initNovel(user_id: string, title: string, parameters: any): Promise<string> {
-    const { data, error } = await supabase
+  static async initNovel(user_id: string, title: string, parameters: any, supabaseClient: SupabaseClient): Promise<string> {
+    const { data, error } = await supabaseClient
       .from('novels')
       .insert([{ user_id, title, parameters }])
       .select('id')
@@ -16,7 +16,7 @@ export class CheckpointManager {
 
     const novelId = data.id;
 
-    const { error: stateError } = await supabase
+    const { error: stateError } = await supabaseClient
       .from('novel_generation_states')
       .insert([{ novel_id: novelId, status: 'in_progress' }]);
 
@@ -29,8 +29,8 @@ export class CheckpointManager {
     return novelId;
   }
 
-  static async setTotalChapters(novelId: string, totalChapters: number): Promise<void> {
-    const { error } = await supabase
+  static async setTotalChapters(novelId: string, totalChapters: number, supabaseClient: SupabaseClient): Promise<void> {
+    const { error } = await supabaseClient
       .from('novel_generation_states')
       .update({ total_chapters: totalChapters })
       .eq('novel_id', novelId);
@@ -43,8 +43,8 @@ export class CheckpointManager {
     Logger.info(`Set total chapters ${totalChapters} for ${novelId}`);
   }
 
-  static async updateChapter(novelId: string, chapterNumber: number, content: string): Promise<void> {
-    const { error } = await supabase
+  static async updateChapter(novelId: string, chapterNumber: number, content: string, supabaseClient: SupabaseClient): Promise<void> {
+    const { error } = await supabaseClient
       .from('novel_chapters')
       .insert([{ novel_id: novelId, chapter_number: chapterNumber, content }]);
 
@@ -53,7 +53,7 @@ export class CheckpointManager {
       throw error;
     }
 
-    const { error: stateError } = await supabase
+    const { error: stateError } = await supabaseClient
       .from('novel_generation_states')
       .update({ current_chapter: chapterNumber })
       .eq('novel_id', novelId);
@@ -63,7 +63,7 @@ export class CheckpointManager {
       throw stateError;
     }
 
-    const { error: tempError } = await supabase
+    const { error: tempError } = await supabaseClient
       .from('temp_novel_data')
       .upsert(
         {
@@ -83,8 +83,8 @@ export class CheckpointManager {
     Logger.info(`Updated Chapter ${chapterNumber} for ${novelId}`);
   }
 
-  static async storeOutline(novelId: string, outline: string): Promise<void> {
-    const { error } = await supabase
+  static async storeOutline(novelId: string, outline: string, supabaseClient: SupabaseClient): Promise<void> {
+    const { error } = await supabaseClient
       .from('temp_novel_data')
       .upsert(
         {
@@ -103,8 +103,8 @@ export class CheckpointManager {
     Logger.info(`Stored outline for ${novelId}`);
   }
 
-  static async storeDraft(novelId: string, chapterNumber: number, draftType: string, content: string): Promise<void> {
-    const { error } = await supabase
+  static async storeDraft(novelId: string, chapterNumber: number, draftType: string, content: string, supabaseClient: SupabaseClient): Promise<void> {
+    const { error } = await supabaseClient
       .from('temp_novel_data')
       .upsert(
         {
@@ -123,8 +123,8 @@ export class CheckpointManager {
     Logger.info(`Stored ${draftType} for Chapter ${chapterNumber} in ${novelId}`);
   }
 
-  static async cleanupTempData(novelId: string): Promise<void> {
-    const { error } = await supabase
+  static async cleanupTempData(novelId: string, supabaseClient: SupabaseClient): Promise<void> {
+    const { error } = await supabaseClient
       .from('temp_novel_data')
       .delete()
       .eq('novel_id', novelId);
@@ -136,8 +136,8 @@ export class CheckpointManager {
     }
   }
 
-  static async finishNovel(novelId: string): Promise<void> {
-    const { error } = await supabase
+  static async finishNovel(novelId: string, supabaseClient: SupabaseClient): Promise<void> {
+    const { error } = await supabaseClient
       .from('novel_generation_states')
       .update({ status: 'completed' })
       .eq('novel_id', novelId);
@@ -147,12 +147,12 @@ export class CheckpointManager {
       throw error;
     }
 
-    await this.cleanupTempData(novelId);
+    await this.cleanupTempData(novelId, supabaseClient);
     Logger.info(`Novel completed ${novelId}`);
   }
 
-  static async errorState(novelId: string, message: string): Promise<void> {
-    const { error } = await supabase
+  static async errorState(novelId: string, message: string, supabaseClient: SupabaseClient): Promise<void> {
+    const { error } = await supabaseClient
       .from('novel_generation_states')
       .update({ status: 'error', error_message: message })
       .eq('novel_id', novelId);
@@ -162,7 +162,7 @@ export class CheckpointManager {
       throw error;
     }
 
-    await this.cleanupTempData(novelId);
+    await this.cleanupTempData(novelId, supabaseClient);
     Logger.warn(`Novel errored ${novelId}: ${message}`);
   }
 } 

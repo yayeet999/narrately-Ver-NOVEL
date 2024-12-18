@@ -12,6 +12,7 @@ import {
 import { CheckpointManager } from './CheckpointManager';
 import { Logger } from '../utils/Logger';
 import { generateOutlineInstructions, generateChapterInstructions, generateRefinementInstructions } from './ParameterIntegration';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 function trimInput(input: string, maxLength: number): string {
   if (input.length <= maxLength) return input;
@@ -19,68 +20,65 @@ function trimInput(input: string, maxLength: number): string {
 }
 
 export class NovelGenerator {
-  static async generateNovel(user_id: string, inputParams: Partial<NovelParameters>): Promise<{ novelId: string }> {
+  static async generateNovel(
+    user_id: string, 
+    inputParams: Partial<NovelParameters>, 
+    supabaseClient: SupabaseClient
+  ): Promise<{ novelId: string }> {
     const params = validateAndFillDefaults(inputParams);
-    const novelId = await CheckpointManager.initNovel(user_id, params.title || 'Untitled Novel', params);
+    const novelId = await CheckpointManager.initNovel(user_id, params.title || 'Untitled Novel', params, supabaseClient);
 
     try {
-      // Enhanced Workflow Steps
-
       // 1. Generate initial outline
       const outlineIntegration = generateOutlineInstructions(params);
       const initialOutline = await this.generateOutline(params, outlineIntegration);
       if (!initialOutline || initialOutline.length < 1000) {
-        await CheckpointManager.errorState(novelId, 'Insufficient outline.');
+        await CheckpointManager.errorState(novelId, 'Insufficient outline.', supabaseClient);
         throw new Error('Outline failed.');
       }
 
-      // 2. Outline Enhancement Pass #1
+      // 2. Outline refinement passes
       const outlineAfterPass1 = await this.refineOutline(params, initialOutline, 1);
-
-      // 3. Outline Enhancement Pass #2
       const finalOutline = await this.refineOutline(params, outlineAfterPass1, 2);
 
-      await CheckpointManager.storeOutline(novelId, finalOutline);
+      await CheckpointManager.storeOutline(novelId, finalOutline, supabaseClient);
 
-      // Extract total chapters
       const totalChapters = this.extractTotalChapters(finalOutline);
       if (totalChapters < 10 || totalChapters > 150) {
-        await CheckpointManager.errorState(novelId, 'Invalid chapter count.');
+        await CheckpointManager.errorState(novelId, 'Invalid chapter count.', supabaseClient);
         throw new Error('Chapter count invalid.');
       }
 
-      await CheckpointManager.setTotalChapters(novelId, totalChapters);
+      await CheckpointManager.setTotalChapters(novelId, totalChapters, supabaseClient);
       let previousChapters: string[] = [];
 
-      // Generate each chapter with multi-draft and refinement passes
       for (let chapterNumber = 1; chapterNumber <= totalChapters; chapterNumber++) {
         const outlineSegment = this.extractOutlineSegment(finalOutline, chapterNumber);
         if (!outlineSegment) {
-          await CheckpointManager.errorState(novelId, `Missing outline segment for chapter ${chapterNumber}`);
+          await CheckpointManager.errorState(novelId, `Missing outline segment for chapter ${chapterNumber}`, supabaseClient);
           throw new Error(`Outline segment missing for chapter ${chapterNumber}`);
         }
 
         const chapterIntegration = generateChapterInstructions(params, chapterNumber);
         const chosenDraft = await this.generateChapterDraftsAndChoose(params, outlineSegment, previousChapters, chapterNumber, chapterIntegration);
 
-        // After choosing final draft, perform two refinement passes
+        // Refinements
         const refinementNotes = generateRefinementInstructions(params);
         const refinedOnce = await this.refineChapterDraft(chosenDraft, 1, refinementNotes);
         const refinedTwice = await this.refineChapterDraft(refinedOnce, 2, refinementNotes);
 
-        // Validate final chapter
         if (!this.validateChapter(refinedTwice)) {
-          await CheckpointManager.errorState(novelId, `Validation fail chapter ${chapterNumber}`);
+          await CheckpointManager.errorState(novelId, `Validation fail chapter ${chapterNumber}`, supabaseClient);
           throw new Error(`Chapter ${chapterNumber} invalid`);
         }
 
-        await CheckpointManager.updateChapter(novelId, chapterNumber, refinedTwice);
-        await CheckpointManager.storeDraft(novelId, chapterNumber, 'final', refinedTwice);
+        await CheckpointManager.updateChapter(novelId, chapterNumber, refinedTwice, supabaseClient);
+        await CheckpointManager.storeDraft(novelId, chapterNumber, 'final', refinedTwice, supabaseClient);
         previousChapters.push(refinedTwice);
         Logger.info(`Chapter ${chapterNumber} done for ${novelId}`);
       }
 
-      await CheckpointManager.finishNovel(novelId);
+      await CheckpointManager.finishNovel(novelId, supabaseClient);
       Logger.info(`Novel complete ${novelId}`);
       return { novelId };
     } catch (e: any) {
@@ -170,7 +168,6 @@ export class NovelGenerator {
           chosenDraft = draftB;
         } else if (/CHOSEN:\s*Refined Version Needed/i.test(comparison)) {
           Logger.info(`Refine needed Ch${chapterNumber}`);
-          // Extract improvement instructions from comparison text
           const instructionsMatch = comparison.match(/Refined Version Needed[\s\S]*?(?=$)/i);
           const instructions = instructionsMatch ? instructionsMatch[0] : 'Improve narrative flow.';
           const refinementNotes = generateRefinementInstructions(params);
@@ -180,8 +177,7 @@ export class NovelGenerator {
           });
           chosenDraft = refined;
         } else {
-          // Default to draftA if no clear choice
-          chosenDraft = draftA;
+          chosenDraft = draftA; // default
         }
 
         if (!this.validateChapter(chosenDraft)) throw new Error(`Validation fail ch${chapterNumber}`);
