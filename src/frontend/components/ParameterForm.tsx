@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { NovelParameters, Genre, Theme, StoryStructure, ConflictType, ResolutionStyle, SettingType, Character } from '../../services/novel/NovelParameters';
 import { Logger } from '../../services/utils/Logger';
 import { GenreOptions, ThemeOptions, CharacterArchetypes, SettingOptions, ConflictTypeOptions, ResolutionStyleOptions, CulturalFrameworks } from '../../services/novel/NovelParameters';
+import { StoryParameterProcessor, ProcessedMetrics } from '../../services/novel/StoryParameterProcessor';
+import { validateAndFillDefaults } from '../../services/novel/Validation';
 
 interface ParameterFormProps {
   onSubmit: (params: NovelParameters) => void;
@@ -48,8 +50,11 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit, disabled = fals
       relationships: ['Friend of Protagonist']
     }],
     story_description: '',
-    title: '' // Added 'title' to initial state
+    title: ''
   });
+
+  const [processedMetrics, setProcessedMetrics] = useState<ProcessedMetrics | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, field: keyof NovelParameters) => {
     const value = e.target.value;
@@ -57,6 +62,9 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit, disabled = fals
       ...prev,
       [field]: value
     }));
+    // Clear previous preview when parameters change
+    setProcessedMetrics(null);
+    setPreviewError(null);
   };
 
   const handleConflictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -120,10 +128,98 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit, disabled = fals
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const previewProcessedParameters = () => {
+    try {
+      setPreviewError(null);
+      const validatedParams = validateAndFillDefaults(parameters);
+      const processed = StoryParameterProcessor.processParameters(validatedParams);
+      setProcessedMetrics(processed.metrics);
+      Logger.info('Parameters processed for preview:', processed.metrics);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Parameter processing failed';
+      setPreviewError(errorMessage);
+      Logger.error('Parameter preview failed:', error);
+    }
+  };
+
+  const renderProcessedMetrics = () => {
+    if (previewError) {
+      return (
+        <div className="mt-4 p-4 bg-red-50 text-red-700 rounded">
+          <h3 className="font-semibold">Processing Error</h3>
+          <p>{previewError}</p>
+        </div>
+      );
+    }
+
+    if (!processedMetrics) return null;
+
+    return (
+      <div className="mt-4 p-4 bg-gray-50 rounded">
+        <h3 className="font-semibold mb-2">Processed Story Metrics</h3>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="font-medium">Core Metrics</p>
+            <ul className="list-none pl-4">
+              <li>Story Weight: {processedMetrics.storyWeight}</li>
+              <li>Recommended Chapters: {processedMetrics.recommendedChapters}</li>
+            </ul>
+          </div>
+
+          <div>
+            <p className="font-medium">Subplot Distribution</p>
+            <ul className="list-none pl-4">
+              {processedMetrics.subplotDistribution.map((subplot, index) => (
+                <li key={index}>{subplot.subplotName}: {subplot.chapters.length} appearances</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <p className="font-medium">Character Focus</p>
+          <ul className="list-none pl-4">
+            {processedMetrics.characterGuidance.map((char, index) => (
+              <li key={index}>
+                {char.characterName}: {Math.round(char.appearanceFrequency * 100)}% presence
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="mt-4">
+          <p className="font-medium">Sample Chapter Guidance</p>
+          {processedMetrics.chapterGuidance.slice(0, 1).map((guidance, index) => (
+            <div key={index} className="pl-4">
+              <p>Scene Balance:</p>
+              <ul className="list-none pl-4">
+                <li>Action: {guidance.sceneBalance.action}%</li>
+                <li>Dialogue: {guidance.sceneBalance.dialogue}%</li>
+                <li>Introspection: {guidance.sceneBalance.introspection}%</li>
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    Logger.info('Submitting novel parameters:', parameters);
-    onSubmit(parameters as NovelParameters);
+    try {
+      // Always process parameters before submission
+      const validatedParams = validateAndFillDefaults(parameters);
+      const processed = StoryParameterProcessor.processParameters(validatedParams);
+      setProcessedMetrics(processed.metrics);
+      
+      Logger.info('Submitting novel parameters:', validatedParams);
+      onSubmit(validatedParams);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Parameter validation failed';
+      setPreviewError(errorMessage);
+      Logger.error('Parameter submission failed:', error);
+    }
   };
 
   return (
@@ -702,18 +798,26 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit, disabled = fals
         ></textarea>
       </div>
 
-      {/* Submit Button */}
-      <div>
+      <div className="flex gap-4 mt-6">
+        <button
+          type="button"
+          onClick={previewProcessedParameters}
+          disabled={disabled}
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded transition-colors"
+        >
+          Preview Story Metrics
+        </button>
+        
         <button
           type="submit"
           disabled={disabled}
-          className={`bg-blue-600 text-white px-6 py-2 rounded ${
-            disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'
-          }`}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50"
         >
           Generate Novel
         </button>
       </div>
+      
+      {renderProcessedMetrics()}
     </form>
   );
 };

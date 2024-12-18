@@ -2,12 +2,22 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { NovelGenerator } from '../../services/novel/NovelGenerator';
 import { Logger } from '../../services/utils/Logger';
+import { validateAndFillDefaults } from '../../services/novel/Validation';
+import { StoryParameterProcessor } from '../../services/novel/StoryParameterProcessor';
 
 type Data = {
   novelId?: string;
   error?: string;
   details?: string;
+  processedMetrics?: any;
 };
+
+class ParameterProcessingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ParameterProcessingError';
+  }
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
   if (req.method !== 'POST') {
@@ -52,9 +62,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return res.status(500).json({ error: 'Internal server error: missing OpenAI API key' });
     }
 
-    const { novelId } = await NovelGenerator.generateNovel(user_id, parameters, supabaseServerClient);
-    Logger.info(`Novel generation started: ${novelId}`);
-    return res.status(200).json({ novelId });
+    // Validate and process parameters
+    try {
+      const validatedParams = validateAndFillDefaults(parameters);
+      const processedParams = StoryParameterProcessor.processParameters(validatedParams);
+      Logger.info('Parameters processed successfully:', { metrics: processedParams.metrics });
+
+      const { novelId } = await NovelGenerator.generateNovel(user_id, validatedParams, supabaseServerClient);
+      Logger.info(`Novel generation started: ${novelId}`);
+      
+      return res.status(200).json({ 
+        novelId,
+        processedMetrics: processedParams.metrics
+      });
+    } catch (paramError) {
+      Logger.error('Parameter processing failed:', paramError);
+      throw new ParameterProcessingError(paramError instanceof Error ? paramError.message : 'Parameter processing failed');
+    }
 
   } catch (unhandledError: any) {
     Logger.error('Unhandled error in generate-novel route:', unhandledError);
@@ -62,7 +86,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     let errorMessage = 'Internal server error';
     let statusCode = 500;
 
-    if (unhandledError.response?.status === 504) {
+    if (unhandledError instanceof ParameterProcessingError) {
+      errorMessage = unhandledError.message;
+      statusCode = 400;
+    } else if (unhandledError.response?.status === 504) {
       errorMessage = 'Request timed out - please try again';
       statusCode = 504;
     } else if (unhandledError.response?.status === 401) {

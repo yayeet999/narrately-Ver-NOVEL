@@ -159,27 +159,6 @@ export class CheckpointManager {
     Logger.info(`Updated chapter ${chapterNumber} in ${novelId}`);
   }
 
-  static async storeDraft(novelId: string, chapterNumber: number, draftType: string, content: string, supabaseClient: SupabaseClient): Promise<void> {
-    const timestamp = new Date().toISOString();
-    const { error } = await supabaseClient
-      .rpc('update_temp_data', {
-        novel_id: novelId,
-        data_type: `draft_${chapterNumber}_${draftType}`,
-        content: JSON.stringify({
-          chapter: chapterNumber,
-          type: draftType,
-          content: content,
-          timestamp: timestamp
-        })
-      });
-
-    if (error) {
-      Logger.error(`Error storing ${draftType} for Ch${chapterNumber} ${novelId}:`, error);
-      throw error;
-    }
-    Logger.info(`Stored ${draftType} for Chapter ${chapterNumber} in ${novelId}`);
-  }
-
   static async finishNovel(novelId: string, supabaseClient: SupabaseClient): Promise<void> {
     const { error } = await supabaseClient
       .from('novels')

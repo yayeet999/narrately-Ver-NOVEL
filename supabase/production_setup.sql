@@ -1,6 +1,5 @@
 -- Start fresh by dropping existing objects
 DROP TABLE IF EXISTS public.novel_chapters CASCADE;
-DROP TABLE IF EXISTS public.temp_novel_data CASCADE;
 DROP TABLE IF EXISTS public.novel_generation_states CASCADE;
 DROP TABLE IF EXISTS public.novels CASCADE;
 DROP TYPE IF EXISTS public.outline_status_enum CASCADE;
@@ -46,24 +45,11 @@ CREATE TABLE public.novel_chapters (
     UNIQUE(novel_id, chapter_number)
 );
 
--- Create the temporary data table for drafts and intermediate content
-CREATE TABLE public.temp_novel_data (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    novel_id UUID REFERENCES public.novels(id) ON DELETE CASCADE NOT NULL,
-    data_type TEXT NOT NULL,
-    content TEXT NOT NULL,
-    metadata JSONB DEFAULT '{}' NOT NULL CHECK (jsonb_typeof(metadata) = 'object'),
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    CONSTRAINT unique_outline_version UNIQUE (novel_id, data_type)
-);
-
 -- Create indexes for performance
 CREATE INDEX idx_novels_user_id ON public.novels(user_id);
 CREATE INDEX idx_novel_generation_states_novel_id ON public.novel_generation_states(novel_id);
 CREATE INDEX idx_novel_generation_states_outline ON public.novel_generation_states(novel_id, outline_version);
 CREATE INDEX idx_novel_chapters_novel_id_number ON public.novel_chapters(novel_id, chapter_number);
-CREATE INDEX idx_temp_novel_data_novel_id_type ON public.temp_novel_data(novel_id, data_type);
-CREATE INDEX idx_temp_novel_data_metadata_version ON public.temp_novel_data((metadata->>'version')) WHERE data_type LIKE 'outline_v%';
 
 -- Create function for updating timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
