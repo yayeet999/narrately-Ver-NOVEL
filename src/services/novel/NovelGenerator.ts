@@ -9,7 +9,7 @@ import {
   outlineRefinementPrompt,
   chapterRefinementInstructions
 } from './PromptTemplates';
-import { CheckpointManager } from './CheckpointManager';
+import { CheckpointManager, OutlineStatus } from './CheckpointManager';
 import { Logger } from '../utils/Logger';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { generateOutlineInstructions, generateChapterInstructions, generateRefinementInstructions } from './ParameterIntegration';
