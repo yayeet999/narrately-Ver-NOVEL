@@ -13,6 +13,7 @@ import { CheckpointManager, OutlineStatus } from './CheckpointManager';
 import { Logger } from '../utils/Logger';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { generateOutlineInstructions, generateChapterInstructions, generateRefinementInstructions } from './ParameterIntegration';
+import { StoryParameterProcessor } from './StoryParameterProcessor';
 
 function trimInput(input: string, maxLength: number): string {
   if (input.length <= maxLength) return input;
@@ -47,14 +48,14 @@ export class NovelGenerator {
     try {
       const params = validateAndFillDefaults(inputParams);
       Logger.info('Starting novel generation with params:', params);
-      
+
+      const processedParams = StoryParameterProcessor.processParameters(params);
+
       novelId = await CheckpointManager.initNovel(user_id, params.title || 'Untitled Novel', params, supabaseClient);
       Logger.info(`Initialized novel ${novelId}`);
 
-      // Generate and refine outline
-      let outline = await this.generateAndRefineOutline(params, novelId, supabaseClient);
+      let outline = await this.generateAndRefineOutline(params, novelId, supabaseClient, processedParams.outlineGuidance);
 
-      // Extract and validate chapter count
       const totalChapters = this.extractTotalChapters(outline);
       if (totalChapters < 10 || totalChapters > 150) {
         throw new Error(`Invalid chapter count: ${totalChapters}`);
@@ -63,7 +64,6 @@ export class NovelGenerator {
       await CheckpointManager.setTotalChapters(novelId, totalChapters, supabaseClient);
       Logger.info(`Set total chapters: ${totalChapters}`);
 
-      // Generate chapters
       await this.generateAllChapters(params, outline, totalChapters, novelId, supabaseClient);
 
       await CheckpointManager.finishNovel(novelId, supabaseClient);
@@ -86,33 +86,29 @@ export class NovelGenerator {
   private static async generateAndRefineOutline(
     params: NovelParameters,
     novelId: string,
-    supabaseClient: SupabaseClient
+    supabaseClient: SupabaseClient,
+    outlineGuidance: string
   ): Promise<string> {
     try {
-      // Check for existing outline state
       const existingOutline = await CheckpointManager.getLatestOutline(novelId, supabaseClient);
       if (existingOutline) {
         Logger.info(`Resuming outline generation from version ${existingOutline.version} (${existingOutline.status})`);
         return await this.resumeOutlineGeneration(params, novelId, existingOutline, supabaseClient);
       }
 
-      // Initial outline generation
       Logger.info('Generating initial outline...');
       const outlineIntegration = generateOutlineInstructions(params);
-      const initialOutline = await this.generateOutline(params, outlineIntegration);
+      const initialOutline = await this.generateOutline(params, outlineIntegration, outlineGuidance);
       await CheckpointManager.storeOutline(novelId, initialOutline, 0, 'initial', supabaseClient);
 
-      // First refinement pass
       Logger.info('First outline refinement pass...');
       const outlinePass1 = await this.refineOutline(params, initialOutline, 1);
       await CheckpointManager.storeOutline(novelId, outlinePass1, 1, 'pass1', supabaseClient);
 
-      // Second refinement pass
       Logger.info('Second outline refinement pass...');
       const finalOutline = await this.refineOutline(params, outlinePass1, 2);
       await CheckpointManager.storeOutline(novelId, finalOutline, 2, 'pass2', supabaseClient);
 
-      // Mark as completed
       await CheckpointManager.storeOutline(novelId, finalOutline, 3, 'completed', supabaseClient);
 
       return finalOutline;
@@ -130,30 +126,25 @@ export class NovelGenerator {
     supabaseClient: SupabaseClient
   ): Promise<string> {
     let currentOutline = currentState.content;
-    let currentVersion = currentState.version;
 
     switch (currentState.status) {
       case 'initial':
-        // Resume from first refinement
         Logger.info('Resuming from first refinement pass...');
         currentOutline = await this.refineOutline(params, currentOutline, 1);
         await CheckpointManager.storeOutline(novelId, currentOutline, 1, 'pass1', supabaseClient);
-        
-        // Continue to second pass
+
         Logger.info('Continuing to second refinement pass...');
         currentOutline = await this.refineOutline(params, currentOutline, 2);
         await CheckpointManager.storeOutline(novelId, currentOutline, 2, 'pass2', supabaseClient);
         break;
 
       case 'pass1':
-        // Resume from second refinement
         Logger.info('Resuming from second refinement pass...');
         currentOutline = await this.refineOutline(params, currentOutline, 2);
         await CheckpointManager.storeOutline(novelId, currentOutline, 2, 'pass2', supabaseClient);
         break;
 
       case 'pass2':
-        // Already at final version, nothing to do
         Logger.info('Outline already at final version');
         break;
 
@@ -162,7 +153,6 @@ export class NovelGenerator {
         return currentOutline;
     }
 
-    // Mark as completed if we got here through refinement
     if (currentState.status !== 'completed' as OutlineStatus) {
       await CheckpointManager.storeOutline(novelId, currentOutline, 3, 'completed', supabaseClient);
     }
@@ -182,7 +172,7 @@ export class NovelGenerator {
     for (let chapterNumber = 1; chapterNumber <= totalChapters; chapterNumber++) {
       try {
         Logger.info(`Starting generation of chapter ${chapterNumber}`);
-        
+
         const outlineSegment = this.extractOutlineSegment(outline, chapterNumber);
         if (!outlineSegment) {
           throw new Error(`Missing outline segment for chapter ${chapterNumber}`);
@@ -198,10 +188,9 @@ export class NovelGenerator {
 
         await CheckpointManager.updateChapter(novelId, chapterNumber, chapterContent, supabaseClient);
         await CheckpointManager.storeDraft(novelId, chapterNumber, 'final', chapterContent, supabaseClient);
-        
+
         previousChapters.push(chapterContent);
         Logger.info(`Completed chapter ${chapterNumber}`);
-
       } catch (error) {
         const errorMsg = getErrorMessage(error);
         Logger.error(`Error generating chapter ${chapterNumber}:`, error);
@@ -212,12 +201,13 @@ export class NovelGenerator {
 
   private static async generateOutline(
     params: NovelParameters,
-    integrationNotes: string
+    integrationNotes: string,
+    outlineGuidance: string
   ): Promise<string> {
     let attempts = 0;
     while (attempts < this.MAX_RETRIES) {
       try {
-        const prompt = trimInput(outlinePrompt(params, integrationNotes), 20000);
+        const prompt = trimInput(outlinePrompt(params, integrationNotes, outlineGuidance), 20000);
         const outline = await llm.generate({
           prompt,
           max_tokens: 3000,
@@ -269,7 +259,7 @@ export class NovelGenerator {
     const lines = outline.split('\n');
     const chapterPattern = new RegExp(`Chapter\\s+${chapterNumber}\\b`, 'i');
     const startIndex = lines.findIndex(line => chapterPattern.test(line));
-    
+
     if (startIndex < 0) return null;
 
     let endIndex = lines.findIndex((line, index) => 
@@ -277,7 +267,7 @@ export class NovelGenerator {
     );
 
     if (endIndex === -1) endIndex = lines.length;
-    
+
     return lines.slice(startIndex, endIndex).join('\n');
   }
 
@@ -306,7 +296,7 @@ export class NovelGenerator {
         attempts++;
         Logger.warn(`Chapter ${chapterNumber} generation attempt ${attempts} failed:`, error);
         if (attempts === maxRetries) throw error;
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
       }
     }
     throw new Error(`All generation attempts failed for chapter ${chapterNumber}`);
@@ -318,27 +308,23 @@ export class NovelGenerator {
     previousChapters: string[],
     chapterNumber: number
   ): Promise<string> {
-    // Generate initial drafts
     const chapterIntegration = generateChapterInstructions(params, chapterNumber);
     const [draftA, draftB] = await Promise.all([
       this.generateChapterDraft(params, outlineSegment, previousChapters, chapterNumber, chapterIntegration),
       this.generateChapterDraft(params, outlineSegment, previousChapters, chapterNumber, chapterIntegration)
     ]);
 
-    // Compare drafts
     const comparison = await llm.generate({
       prompt: trimInput(comparisonPrompt(draftA, draftB), 20000),
       max_tokens: 1500,
       temperature: 0.4
     });
 
-    // Choose the best draft
     let chosenDraft = draftA;
     if (/CHOSEN:\s*Draft B/i.test(comparison)) {
       chosenDraft = draftB;
     }
 
-    // Refine the chosen draft
     const refinementNotes = generateRefinementInstructions(params);
     const refinedOnce = await this.refineChapterDraft(chosenDraft, 1, refinementNotes);
     const finalDraft = await this.refineChapterDraft(refinedOnce, 2, refinementNotes);
@@ -358,13 +344,7 @@ export class NovelGenerator {
     integrationNotes: string
   ): Promise<string> {
     const prompt = trimInput(
-      chapterDraftPrompt(
-        params,
-        outlineSegment,
-        previousChapters,
-        chapterNumber,
-        integrationNotes
-      ),
+      chapterDraftPrompt(params, outlineSegment, previousChapters, chapterNumber, integrationNotes),
       20000
     );
 
@@ -415,7 +395,6 @@ export class NovelGenerator {
       return false;
     }
 
-    // Check for basic structure
     if (!content.split('\n').some(line => line.trim().length > 0)) {
       Logger.warn('Chapter validation failed: no non-empty lines');
       return false;

@@ -1,8 +1,10 @@
 import { NovelParameters } from './NovelParameters';
 
-export function outlinePrompt(params: NovelParameters, integrationNotes: string): string {
+export function outlinePrompt(params: NovelParameters, integrationNotes: string, outlineGuidance?: string): string {
   return `
 ${integrationNotes}
+
+${outlineGuidance ? `ADDITIONAL OUTLINE GUIDANCE:\n${outlineGuidance}\n\n` : ''}
 
 You are a world-class author creating a detailed, world-class novel outline based on the following parameters.
 
@@ -13,7 +15,7 @@ Your task:
 - Indicate exactly how many chapters there will be.
 - Describe each chapter's key events, character developments, conflicts, and thematic progressions.
 - Ensure the outline sets the stage for a narrative of high quality, rich complexity, emotional depth, and thematic resonance.
-`;
+`.trim();
 }
 
 export function outlineRefinementPrompt(params: NovelParameters, currentOutline: string, passNumber: number): string {
@@ -33,7 +35,7 @@ Parameters:
 ${parametersAsText(params)}
 
 Refine this outline again. Output the improved outline.
-`;
+`.trim();
 }
 
 export function chapterDraftPrompt(params: NovelParameters, outlineSegment: string, previousChapters: string[], chapterNumber: number, integrationNotes: string): string {
@@ -58,7 +60,7 @@ INSTRUCTIONS:
 1. Think internally about coherence and quality (no need to output reasoning).
 2. Produce a single, coherent chapter text (~${params.average_chapter_length} words).
 3. Output only the final polished chapter text, no extra explanation.
-`;
+`.trim();
 }
 
 export function comparisonPrompt(draftA: string, draftB: string): string {
@@ -77,7 +79,7 @@ ${draftA}
 
 Draft B:
 ${draftB}
-`;
+`.trim();
 }
 
 export function refinementPrompt(chosenDraft: string, critique: string, integrationNotes: string): string {
@@ -93,7 +95,7 @@ Critique / Instructions:
 ${critique}
 
 Rewrite the chapter with improvements. Output only the improved chapter text.
-`;
+`.trim();
 }
 
 export function chapterRefinementInstructions(passNumber: number): string {
@@ -102,13 +104,13 @@ export function chapterRefinementInstructions(passNumber: number): string {
 - Enhance clarity, emotional resonance, characterization details, and ensure alignment with the outline.
 - Improve scene-setting, thematic consistency, and linguistic quality.
 - Adjust pacing or add missing thematic elements as needed.
-`;
+`.trim();
   } else {
     return `Refinement Pass 2 Focus:
 - Further polish stylistic continuity, subtle thematic layering, dialogue flow.
 - Ensure continuity with previous chapters and desired narrative style.
 - Final polish for a coherent, high-quality chapter.
-`;
+`.trim();
   }
 }
 
@@ -169,5 +171,5 @@ ${params.characters.map((c,i)=>`Character ${i+1}: ${c.role}, ${c.archetype}, ${c
 
 **Description**
 ${params.story_description}
-`;
+`.trim();
 } 
