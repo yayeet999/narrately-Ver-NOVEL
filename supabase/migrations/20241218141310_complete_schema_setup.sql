@@ -4,6 +4,14 @@ DROP TABLE IF EXISTS public.temp_novel_data CASCADE;
 DROP TABLE IF EXISTS public.novel_generation_states CASCADE;
 DROP TABLE IF EXISTS public.novels CASCADE;
 
+-- Create enum type for outline status
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'outline_status_enum') THEN
+        CREATE TYPE public.outline_status_enum AS ENUM ('initial', 'pass1', 'pass2', 'completed');
+    END IF;
+END $$;
+
 -- Create base novels table
 CREATE TABLE public.novels (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -23,7 +31,7 @@ CREATE TABLE public.novel_generation_states (
     status TEXT CHECK (status IN ('pending', 'in_progress', 'completed', 'error')) DEFAULT 'pending',
     error_message TEXT,
     outline_version INT DEFAULT 0 NOT NULL,
-    outline_status TEXT CHECK (outline_status IN ('initial', 'pass1', 'pass2', 'completed')) DEFAULT 'initial' NOT NULL,
+    outline_status public.outline_status_enum DEFAULT 'initial' NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -64,6 +72,7 @@ GRANT ALL ON public.novels TO postgres, anon, authenticated, service_role;
 GRANT ALL ON public.novel_generation_states TO postgres, anon, authenticated, service_role;
 GRANT ALL ON public.novel_chapters TO postgres, anon, authenticated, service_role;
 GRANT ALL ON public.temp_novel_data TO postgres, anon, authenticated, service_role;
+GRANT USAGE ON TYPE public.outline_status_enum TO postgres, anon, authenticated, service_role;
 
 -- Novels policies
 CREATE POLICY "novels_select" ON public.novels FOR SELECT USING (auth.uid() = user_id);
