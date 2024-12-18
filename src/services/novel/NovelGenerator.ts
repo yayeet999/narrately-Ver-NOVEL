@@ -163,7 +163,7 @@ export class NovelGenerator {
     }
 
     // Mark as completed if we got here through refinement
-    if (currentState.status !== 'completed') {
+    if (currentState.status !== 'completed' as OutlineStatus) {
       await CheckpointManager.storeOutline(novelId, currentOutline, 3, 'completed', supabaseClient);
     }
 
