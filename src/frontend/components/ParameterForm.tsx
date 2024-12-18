@@ -8,7 +8,7 @@ interface ParameterFormProps {
   disabled?: boolean;
 }
 
-const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit }) => {
+const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit, disabled = false }) => {
   const [parameters, setParameters] = useState<Partial<NovelParameters>>({
     novel_length: '50k-100k',
     chapter_structure: 'fixed',
@@ -47,7 +47,8 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit }) => {
       arc_type: 'coming_of_age',
       relationships: ['Friend of Protagonist']
     }],
-    story_description: ''
+    story_description: '',
+    title: '' // Added 'title' to initial state
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, field: keyof NovelParameters) => {
@@ -708,7 +709,7 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit }) => {
           disabled={disabled}
           className={`bg-blue-600 text-white px-6 py-2 rounded ${
             disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'
-          }'}
+          }`}
         >
           Generate Novel
         </button>
@@ -717,4 +718,4 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit }) => {
   );
 };
 
-export default ParameterForm; 
+export default ParameterForm;
