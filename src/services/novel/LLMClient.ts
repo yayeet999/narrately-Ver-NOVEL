@@ -7,15 +7,18 @@ interface LLMRequest {
   temperature: number;
 }
 
-interface OpenAIResponse {
+interface ChatCompletionResponse {
   id: string;
   object: string;
   created: number;
   model: string;
   choices: {
-    text: string;
     index: number;
     finish_reason: string | null;
+    message: {
+      role: string;
+      content: string;
+    };
   }[];
   usage?: {
     prompt_tokens: number;
@@ -30,19 +33,24 @@ export class LLMClient {
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
-    this.model = 'gpt-4o-mini'; // The chosen model name
+    this.model = 'gpt-4o-mini';
   }
 
   async generate(request: LLMRequest): Promise<string> {
     try {
       const payload = {
         model: this.model,
-        prompt: request.prompt,
+        messages: [
+          {
+            role: 'user',
+            content: request.prompt
+          }
+        ],
         max_tokens: request.max_tokens,
         temperature: request.temperature
       };
 
-      const res = await fetch('https://api.openai.com/v1/completions', {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -57,12 +65,12 @@ export class LLMClient {
         throw new Error(`LLM error: ${errText}`);
       }
 
-      const data: OpenAIResponse = await res.json();
+      const data: ChatCompletionResponse = await res.json();
       if (!data.choices || data.choices.length === 0) {
         throw new Error('No completion choices returned from OpenAI.');
       }
 
-      return data.choices[0].text.trim();
+      return data.choices[0].message.content.trim();
     } catch (error) {
       Logger.error('Error communicating with OpenAI LLM:', error);
       throw error;
