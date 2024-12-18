@@ -89,21 +89,31 @@ export class NovelGenerator {
     supabaseClient: SupabaseClient
   ): Promise<string> {
     try {
+      // Check for existing outline state
+      const existingOutline = await CheckpointManager.getLatestOutline(novelId, supabaseClient);
+      if (existingOutline) {
+        Logger.info(`Resuming outline generation from version ${existingOutline.version} (${existingOutline.status})`);
+        return await this.resumeOutlineGeneration(params, novelId, existingOutline, supabaseClient);
+      }
+
       // Initial outline generation
       Logger.info('Generating initial outline...');
       const outlineIntegration = generateOutlineInstructions(params);
       const initialOutline = await this.generateOutline(params, outlineIntegration);
-      await CheckpointManager.storeOutline(novelId, initialOutline, supabaseClient);
+      await CheckpointManager.storeOutline(novelId, initialOutline, 0, 'initial', supabaseClient);
 
       // First refinement pass
       Logger.info('First outline refinement pass...');
       const outlinePass1 = await this.refineOutline(params, initialOutline, 1);
-      await CheckpointManager.storeOutline(novelId, outlinePass1, supabaseClient);
+      await CheckpointManager.storeOutline(novelId, outlinePass1, 1, 'pass1', supabaseClient);
 
       // Second refinement pass
       Logger.info('Second outline refinement pass...');
       const finalOutline = await this.refineOutline(params, outlinePass1, 2);
-      await CheckpointManager.storeOutline(novelId, finalOutline, supabaseClient);
+      await CheckpointManager.storeOutline(novelId, finalOutline, 2, 'pass2', supabaseClient);
+
+      // Mark as completed
+      await CheckpointManager.storeOutline(novelId, finalOutline, 3, 'completed', supabaseClient);
 
       return finalOutline;
     } catch (error) {
@@ -111,6 +121,53 @@ export class NovelGenerator {
       Logger.error('Error in outline generation:', error);
       throw new Error(`Outline generation failed: ${errorMsg}`);
     }
+  }
+
+  private static async resumeOutlineGeneration(
+    params: NovelParameters,
+    novelId: string,
+    currentState: { content: string; version: number; status: OutlineStatus },
+    supabaseClient: SupabaseClient
+  ): Promise<string> {
+    let currentOutline = currentState.content;
+    let currentVersion = currentState.version;
+
+    switch (currentState.status) {
+      case 'initial':
+        // Resume from first refinement
+        Logger.info('Resuming from first refinement pass...');
+        currentOutline = await this.refineOutline(params, currentOutline, 1);
+        await CheckpointManager.storeOutline(novelId, currentOutline, 1, 'pass1', supabaseClient);
+        
+        // Continue to second pass
+        Logger.info('Continuing to second refinement pass...');
+        currentOutline = await this.refineOutline(params, currentOutline, 2);
+        await CheckpointManager.storeOutline(novelId, currentOutline, 2, 'pass2', supabaseClient);
+        break;
+
+      case 'pass1':
+        // Resume from second refinement
+        Logger.info('Resuming from second refinement pass...');
+        currentOutline = await this.refineOutline(params, currentOutline, 2);
+        await CheckpointManager.storeOutline(novelId, currentOutline, 2, 'pass2', supabaseClient);
+        break;
+
+      case 'pass2':
+        // Already at final version, nothing to do
+        Logger.info('Outline already at final version');
+        break;
+
+      case 'completed':
+        Logger.info('Using completed outline');
+        return currentOutline;
+    }
+
+    // Mark as completed if we got here through refinement
+    if (currentState.status !== 'completed') {
+      await CheckpointManager.storeOutline(novelId, currentOutline, 3, 'completed', supabaseClient);
+    }
+
+    return currentOutline;
   }
 
   private static async generateAllChapters(

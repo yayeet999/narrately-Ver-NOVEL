@@ -1,6 +1,8 @@
 import { Logger } from '../utils/Logger';
 import { SupabaseClient } from '@supabase/supabase-js';
 
+export type OutlineStatus = 'initial' | 'pass1' | 'pass2' | 'completed';
+
 export class CheckpointManager {
   static async initNovel(user_id: string, title: string, parameters: any, supabaseClient: SupabaseClient): Promise<string> {
     const { data, error } = await supabaseClient
@@ -18,7 +20,12 @@ export class CheckpointManager {
 
     const { error: stateError } = await supabaseClient
       .from('novel_generation_states')
-      .insert([{ novel_id: novelId, status: 'in_progress' }]);
+      .insert([{ 
+        novel_id: novelId, 
+        status: 'in_progress',
+        outline_version: 0,
+        outline_status: 'initial'
+      }]);
 
     if (stateError) {
       Logger.error('Error init novel state:', stateError);
@@ -27,6 +34,91 @@ export class CheckpointManager {
 
     Logger.info(`Initialized novel ${novelId}`);
     return novelId;
+  }
+
+  static async storeOutline(
+    novelId: string, 
+    outline: string, 
+    version: number,
+    status: OutlineStatus,
+    supabaseClient: SupabaseClient
+  ): Promise<void> {
+    const { error } = await supabaseClient
+      .from('temp_novel_data')
+      .upsert(
+        {
+          novel_id: novelId,
+          data_type: `outline_v${version}`,
+          content: outline,
+          metadata: { 
+            version,
+            status,
+            timestamp: new Date().toISOString()
+          }
+        },
+        { onConflict: 'novel_id,data_type' }
+      );
+
+    if (error) {
+      Logger.error(`Error storing outline v${version} ${novelId}:`, error);
+      throw error;
+    }
+    Logger.info(`Stored outline v${version} for ${novelId}`);
+  }
+
+  static async getLatestOutline(novelId: string, supabaseClient: SupabaseClient): Promise<{ content: string; version: number; status: OutlineStatus } | null> {
+    const { data, error } = await supabaseClient
+      .from('novel_generation_states')
+      .select('outline_version, outline_status')
+      .eq('novel_id', novelId)
+      .single();
+
+    if (error) {
+      Logger.error(`Error getting outline state ${novelId}:`, error);
+      throw error;
+    }
+
+    if (!data || data.outline_version === null) {
+      return null;
+    }
+
+    const { data: outlineData, error: outlineError } = await supabaseClient
+      .from('temp_novel_data')
+      .select('content, metadata')
+      .eq('novel_id', novelId)
+      .eq('data_type', `outline_v${data.outline_version}`)
+      .single();
+
+    if (outlineError) {
+      Logger.error(`Error getting outline content ${novelId}:`, outlineError);
+      throw outlineError;
+    }
+
+    return {
+      content: outlineData.content,
+      version: data.outline_version,
+      status: data.outline_status as OutlineStatus
+    };
+  }
+
+  static async getAllOutlineVersions(novelId: string, supabaseClient: SupabaseClient): Promise<Array<{ content: string; version: number; status: OutlineStatus }>> {
+    const { data, error } = await supabaseClient
+      .from('temp_novel_data')
+      .select('content, metadata')
+      .eq('novel_id', novelId)
+      .like('data_type', 'outline_v%')
+      .order('metadata->version', { ascending: true });
+
+    if (error) {
+      Logger.error(`Error getting all outlines ${novelId}:`, error);
+      throw error;
+    }
+
+    return data.map(item => ({
+      content: item.content,
+      version: parseInt(item.metadata.version),
+      status: item.metadata.status as OutlineStatus
+    }));
   }
 
   static async setTotalChapters(novelId: string, totalChapters: number, supabaseClient: SupabaseClient): Promise<void> {
@@ -81,26 +173,6 @@ export class CheckpointManager {
     }
 
     Logger.info(`Updated Chapter ${chapterNumber} for ${novelId}`);
-  }
-
-  static async storeOutline(novelId: string, outline: string, supabaseClient: SupabaseClient): Promise<void> {
-    const { error } = await supabaseClient
-      .from('temp_novel_data')
-      .upsert(
-        {
-          novel_id: novelId,
-          data_type: 'outline',
-          content: outline,
-          metadata: {}
-        },
-        { onConflict: 'novel_id,data_type' }
-      );
-
-    if (error) {
-      Logger.error(`Error storing outline ${novelId}:`, error);
-      throw error;
-    }
-    Logger.info(`Stored outline for ${novelId}`);
   }
 
   static async storeDraft(novelId: string, chapterNumber: number, draftType: string, content: string, supabaseClient: SupabaseClient): Promise<void> {
