@@ -12,7 +12,7 @@ import { Logger } from '../utils/Logger';
  * @typedef ProcessedMetrics
  * Core metrics and guidance that will inform outline and chapter generation.
  */
-interface ProcessedMetrics {
+export interface ProcessedMetrics {
   storyWeight: number;
   recommendedChapters: number;
   subplotDistribution: SubplotGuidance[];
@@ -24,7 +24,7 @@ interface ProcessedMetrics {
  * @typedef SubplotGuidance
  * Guidance for how each subplot should be integrated per chapter.
  */
-interface SubplotGuidance {
+export interface SubplotGuidance {
   subplotName: string;
   chapters: Array<{ chapter: number; focusLevel: number; themeLink: string }>;
 }
@@ -33,7 +33,7 @@ interface SubplotGuidance {
  * @typedef CharacterGuidance
  * Guidance for character appearances and involvement.
  */
-interface CharacterGuidance {
+export interface CharacterGuidance {
   characterName: string;
   appearanceFrequency: number;
   rolesInChapters: Array<{ chapterRange: string; suggestedActions: string[] }>;
@@ -43,7 +43,7 @@ interface CharacterGuidance {
  * @typedef ChapterGuidance
  * Detailed guidance for a specific chapter or chapter segment.
  */
-interface ChapterGuidance {
+export interface ChapterGuidance {
   chapterRange: string;
   sceneBalance: { action: number; dialogue: number; introspection: number };
   tensionLevel: number;
