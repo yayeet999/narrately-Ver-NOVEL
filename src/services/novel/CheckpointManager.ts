@@ -56,7 +56,10 @@ export class CheckpointManager {
             timestamp: new Date().toISOString()
           }
         },
-        { onConflict: 'novel_id,data_type' }
+        { 
+          onConflict: 'novel_id,data_type',
+          ignoreDuplicates: false
+        }
       );
 
     if (error) {
