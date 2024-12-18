@@ -187,8 +187,6 @@ export class NovelGenerator {
         );
 
         await CheckpointManager.updateChapter(novelId, chapterNumber, chapterContent, supabaseClient);
-        await CheckpointManager.storeDraft(novelId, chapterNumber, 'final', chapterContent, supabaseClient);
-
         previousChapters.push(chapterContent);
         Logger.info(`Completed chapter ${chapterNumber}`);
       } catch (error) {
