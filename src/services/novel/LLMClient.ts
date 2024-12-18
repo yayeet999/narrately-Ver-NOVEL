@@ -12,10 +12,11 @@ export class LLMClient {
 
   constructor() {
     this.openai = new OpenAI({
-      apiKey: OPENAI_API_KEY
+      apiKey: OPENAI_API_KEY,
+      timeout: 60000, // 60 second timeout
+      maxRetries: 3
     });
-    // Use a standard OpenAI model
-    this.model = 'gpt-4o-mini'; // or 'gpt-3.5-turbo' for faster/cheaper operations
+    this.model = 'gpt-4o-mini';
   }
 
   async generate(request: { 
@@ -24,6 +25,8 @@ export class LLMClient {
     temperature: number;
   }): Promise<string> {
     try {
+      Logger.info('Starting LLM generation with model:', this.model);
+      
       const completion = await this.openai.chat.completions.create({
         model: this.model,
         messages: [
@@ -35,24 +38,27 @@ export class LLMClient {
         max_tokens: request.max_tokens,
         temperature: request.temperature,
         presence_penalty: 0,
-        frequency_penalty: 0
+        frequency_penalty: 0,
+        timeout: 60000
       });
 
       if (!completion.choices || completion.choices.length === 0) {
+        Logger.error('No completion choices returned');
         throw new Error('No completion choices returned from OpenAI.');
       }
 
       const output = completion.choices[0].message?.content?.trim();
       
       if (!output) {
+        Logger.error('Empty response from OpenAI');
         throw new Error('Empty response from OpenAI.');
       }
 
+      Logger.info('Successfully generated content of length:', output.length);
       return output;
     } catch (error: any) {
-      Logger.error('Error communicating with OpenAI LLM:', error);
+      Logger.error('Error in LLM generation:', error);
       
-      // Enhanced error handling
       if (error instanceof OpenAI.APIError) {
         switch (error.status) {
           case 401:
@@ -69,43 +75,6 @@ export class LLMClient {
       throw error;
     }
   }
-
-  // Helper method for streaming responses if needed
-  async generateStream(request: { 
-    prompt: string; 
-    max_tokens: number; 
-    temperature: number;
-  }): Promise<AsyncGenerator<string, void, unknown>> {
-    try {
-      const stream = await this.openai.chat.completions.create({
-        model: this.model,
-        messages: [
-          { 
-            role: "user", 
-            content: request.prompt 
-          }
-        ],
-        max_tokens: request.max_tokens,
-        temperature: request.temperature,
-        stream: true
-      });
-
-      async function* textStream() {
-        for await (const chunk of stream) {
-          const content = chunk.choices[0]?.delta?.content;
-          if (content) {
-            yield content;
-          }
-        }
-      }
-
-      return textStream();
-    } catch (error: any) {
-      Logger.error('Error in stream generation:', error);
-      throw error;
-    }
-  }
 }
 
-// Export a singleton instance
 export const llm = new LLMClient();
