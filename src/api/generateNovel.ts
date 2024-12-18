@@ -21,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
  }
 
  try {
-   const { novelId } = await NovelGenerator.generateNovel(user_id, parameters);
+   const { novelId } = await NovelGenerator.generateNovel(user_id, parameters, supabase);
    Logger.info(`Novel generation started: ${novelId}`);
    return res.status(200).json({ status:'ok', novelId });
  } catch (error:any) {
