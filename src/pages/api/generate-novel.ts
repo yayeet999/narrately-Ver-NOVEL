@@ -28,9 +28,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+      Logger.error('Supabase environment variables not set.');
+      return res.status(500).json({ error: 'Internal server error: missing Supabase config.' });
+    }
+
     const supabaseServerClient = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!,
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
       {
         global: {
           headers: {
@@ -40,23 +45,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       }
     );
 
-    // Check if OPENAI_API_KEY is set inside the handler
+    // Check for OPENAI_API_KEY
     if (!process.env.OPENAI_API_KEY) {
       Logger.error('OPENAI_API_KEY is not set on server.');
       return res.status(500).json({ error: 'Internal server error: missing LLM config.' });
     }
 
-    try {
-      const { novelId } = await NovelGenerator.generateNovel(user_id, parameters, supabaseServerClient);
-      Logger.info(`Novel generation started: ${novelId}`);
-      return res.status(200).json({ novelId });
-    } catch (error: any) {
-      Logger.error('Error generating novel:', error);
-      return res.status(500).json({ error: error.message || 'Internal server error' });
-    }
+    const { novelId } = await NovelGenerator.generateNovel(user_id, parameters, supabaseServerClient);
+    Logger.info(`Novel generation started: ${novelId}`);
+    return res.status(200).json({ novelId });
+
   } catch (unhandledError: any) {
-    // Catch any unexpected errors to ensure we always return JSON
+    // Catch any unexpected errors
     Logger.error('Unhandled error in generate-novel route:', unhandledError);
     return res.status(500).json({ error: 'Internal server error' });
   }
-} 
+}
