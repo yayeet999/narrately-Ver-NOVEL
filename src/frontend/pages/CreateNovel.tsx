@@ -13,6 +13,7 @@ const CreateNovel: React.FC = () => {
   const [lastParams, setLastParams] = useState<NovelParameters | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -22,84 +23,128 @@ const CreateNovel: React.FC = () => {
     });
   }, []);
 
-  const generateNovelMutation = useMutation(async (params: NovelParameters) => {
-    if (!accessToken) {
-      throw new Error('User not authenticated. No access token found.');
-    }
+  const generateNovelMutation = useMutation({
+    mutationFn: async (params: NovelParameters) => {
+      setIsLoading(true);
+      setErrorMessage('');
+      
+      if (!accessToken) {
+        throw new Error('User not authenticated. Please log in again.');
+      }
 
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user) {
-      throw new Error('Authentication required');
-    }
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        throw new Error('Authentication required. Please log in again.');
+      }
 
-    const response = await fetch('/api/generate-novel', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({
-        user_id: userData.user.id,
-        parameters: params
-      })
-    });
+      try {
+        const response = await fetch('/api/generate-novel', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            user_id: userData.user.id,
+            parameters: params
+          })
+        });
 
-    const result = await response.json();
-    if (!response.ok) {
-      throw new Error(result.error || 'An error occurred while generating the novel');
-    }
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(
+            errorData?.error || 
+            `Server error (${response.status}). Please try again.`
+          );
+        }
 
-    return { novelId: result.novelId, params };
-  }, {
+        const result = await response.json();
+        if (!result.novelId) {
+          throw new Error('Invalid server response. Please try again.');
+        }
+
+        return { novelId: result.novelId, params };
+      } catch (error: any) {
+        Logger.error('Novel generation error:', error);
+        if (error.message.includes('fetch')) {
+          throw new Error('Network error. Please check your connection and try again.');
+        }
+        throw error;
+      }
+    },
     onSuccess: ({ novelId }) => {
       setNovelId(novelId);
       setIsGenerated(true);
       setErrorMessage('');
-      Logger.info(`Novel record created ${novelId}`);
+      setIsLoading(false);
+      Logger.info(`Novel generation started: ${novelId}`);
     },
-    onError: (error: any) => {
-      Logger.error('Generation initiation error:', error);
+    onError: (error: Error) => {
       setErrorMessage(error.message || 'An unexpected error occurred. Please try again.');
+      setIsLoading(false);
       setIsGenerated(false);
+      Logger.error('Generation error:', error);
+    },
+    onSettled: () => {
+      setIsLoading(false);
     },
     retry: (failureCount, error: any) => {
-      // Retry up to 3 times for specific errors
-      if (failureCount < 3) {
-        const status = (error as any)?.response?.status;
-        return status === 504 || status === 429; // Retry on timeout or rate limit
+      if (failureCount < 2 && error?.message?.includes('504')) {
+        return true;
       }
       return false;
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * (2 ** attemptIndex), 10000) // Exponential backoff
+    retryDelay: (attemptIndex) => Math.min(1000 * (2 ** attemptIndex), 5000)
   });
 
   const handleFormSubmit = (params: NovelParameters) => {
+    if (isLoading) return;
     setLastParams(params);
-    setErrorMessage('');
     generateNovelMutation.mutate(params);
+  };
+
+  const handleRetry = () => {
+    if (lastParams) {
+      handleFormSubmit(lastParams);
+    }
   };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <h1 className="text-3xl font-bold mb-6">Create Your Novel</h1>
-      
+
       {errorMessage && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6" role="alert">
-          <p>{errorMessage}</p>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+          <div className="flex justify-between items-center">
+            <div>
+              <strong className="font-bold">Error: </strong>
+              <span className="block sm:inline">{errorMessage}</span>
+            </div>
+            <button
+              onClick={handleRetry}
+              className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800 ml-4"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+            <p className="text-gray-700">Generating your novel...</p>
+          </div>
         </div>
       )}
 
       {!isGenerated ? (
-        <ParameterForm onSubmit={handleFormSubmit} />
+        <ParameterForm onSubmit={handleFormSubmit} disabled={isLoading} />
       ) : (
         <div className="space-y-6">
           <ProgressBar novelId={novelId} />
           <DownloadButton novelId={novelId} />
-          {generateNovelMutation.isLoading && (
-            <div className="text-gray-600">
-              Initializing generation process...
-            </div>
-          )}
         </div>
       )}
     </div>
