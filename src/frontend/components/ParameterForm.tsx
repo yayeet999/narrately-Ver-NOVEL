@@ -5,6 +5,7 @@ import { GenreOptions, ThemeOptions, CharacterArchetypes, SettingOptions, Confli
 
 interface ParameterFormProps {
   onSubmit: (params: NovelParameters) => void;
+  disabled?: boolean;
 }
 
 const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit }) => {
@@ -704,7 +705,10 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit }) => {
       <div>
         <button
           type="submit"
-          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+          disabled={disabled}
+          className={`bg-blue-600 text-white px-6 py-2 rounded ${
+            disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'
+          }'}
         >
           Generate Novel
         </button>
