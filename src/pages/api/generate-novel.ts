@@ -24,6 +24,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  console.log('=== Debug Request Information ===');
+  console.log('Request headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
+  console.log('================================');
+
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -64,7 +69,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     // Validate and process parameters
     try {
+      console.log('Starting parameter validation with:', JSON.stringify(parameters, null, 2));
       const validatedParams = validateAndFillDefaults(parameters);
+      console.log('Parameters validated successfully:', JSON.stringify(validatedParams, null, 2));
+      
       const processedParams = StoryParameterProcessor.processParameters(validatedParams);
       Logger.info('Parameters processed successfully:', { metrics: processedParams.metrics });
 
