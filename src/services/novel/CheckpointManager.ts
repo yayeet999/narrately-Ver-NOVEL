@@ -3,11 +3,59 @@ import { SupabaseClient } from '@supabase/supabase-js';
 
 export type OutlineStatus = 'initial' | 'pass1' | 'pass2' | 'completed';
 
+interface NovelContent {
+  outline: {
+    version: number;
+    status: OutlineStatus;
+    current: string | null;
+    iterations: Array<{
+      version: number;
+      content: string;
+      status: OutlineStatus;
+      timestamp: string;
+    }>;
+  };
+  chapters: Array<{
+    number: number;
+    content: string | null;
+    timestamp?: string;
+    drafts: Array<{
+      version: string;
+      content: string;
+      timestamp: string;
+    }>;
+  }>;
+  metadata: {
+    current_chapter: number;
+    total_chapters: number;
+    last_updated: string;
+  };
+}
+
 export class CheckpointManager {
   static async initNovel(user_id: string, title: string, parameters: any, supabaseClient: SupabaseClient): Promise<string> {
     const { data, error } = await supabaseClient
-      .from('novels')
-      .insert([{ user_id, title, parameters }])
+      .from('novel_sessions')
+      .insert([{
+        user_id,
+        title,
+        parameters,
+        status: 'in_progress',
+        content: {
+          outline: {
+            version: 0,
+            status: 'initial',
+            current: null,
+            iterations: []
+          },
+          chapters: [],
+          metadata: {
+            current_chapter: 0,
+            total_chapters: 0,
+            last_updated: new Date().toISOString()
+          }
+        }
+      }])
       .select('id')
       .single();
 
@@ -16,51 +64,38 @@ export class CheckpointManager {
       throw error;
     }
 
-    const novelId = data.id;
-
-    const { error: stateError } = await supabaseClient
-      .from('novel_generation_states')
-      .insert([{ 
-        novel_id: novelId, 
-        status: 'in_progress',
-        outline_version: 0,
-        outline_status: 'initial'
-      }]);
-
-    if (stateError) {
-      Logger.error('Error init novel state:', stateError);
-      throw stateError;
-    }
-
-    Logger.info(`Initialized novel ${novelId}`);
-    return novelId;
+    Logger.info(`Initialized novel ${data.id}`);
+    return data.id;
   }
 
   static async storeOutline(
-    novelId: string, 
-    outline: string, 
+    novelId: string,
+    outline: string,
     version: number,
     status: OutlineStatus,
     supabaseClient: SupabaseClient
   ): Promise<void> {
+    const timestamp = new Date().toISOString();
     const { error } = await supabaseClient
-      .from('temp_novel_data')
-      .upsert(
-        {
-          novel_id: novelId,
-          data_type: `outline_v${version}`,
-          content: outline,
-          metadata: { 
-            version,
-            status,
-            timestamp: new Date().toISOString()
+      .from('novel_sessions')
+      .update({
+        content: supabaseClient.rpc('jsonb_deep_set', {
+          content: {
+            outline: {
+              version,
+              status,
+              current: outline,
+              iterations: [{
+                version,
+                content: outline,
+                status,
+                timestamp
+              }]
+            }
           }
-        },
-        { 
-          onConflict: 'novel_id,data_type',
-          ignoreDuplicates: false
-        }
-      );
+        })
+      })
+      .eq('id', novelId);
 
     if (error) {
       Logger.error(`Error storing outline v${version} ${novelId}:`, error);
@@ -71,9 +106,9 @@ export class CheckpointManager {
 
   static async getLatestOutline(novelId: string, supabaseClient: SupabaseClient): Promise<{ content: string; version: number; status: OutlineStatus } | null> {
     const { data, error } = await supabaseClient
-      .from('novel_generation_states')
-      .select('outline_version, outline_status')
-      .eq('novel_id', novelId)
+      .from('novel_sessions')
+      .select('content')
+      .eq('id', novelId)
       .single();
 
     if (error) {
@@ -81,54 +116,49 @@ export class CheckpointManager {
       throw error;
     }
 
-    if (!data || data.outline_version === null) {
+    if (!data?.content?.outline?.current) {
       return null;
     }
 
-    const { data: outlineData, error: outlineError } = await supabaseClient
-      .from('temp_novel_data')
-      .select('content, metadata')
-      .eq('novel_id', novelId)
-      .eq('data_type', `outline_v${data.outline_version}`)
-      .single();
-
-    if (outlineError) {
-      Logger.error(`Error getting outline content ${novelId}:`, outlineError);
-      throw outlineError;
-    }
-
     return {
-      content: outlineData.content,
-      version: data.outline_version,
-      status: data.outline_status as OutlineStatus
+      content: data.content.outline.current,
+      version: data.content.outline.version,
+      status: data.content.outline.status
     };
   }
 
   static async getAllOutlineVersions(novelId: string, supabaseClient: SupabaseClient): Promise<Array<{ content: string; version: number; status: OutlineStatus }>> {
     const { data, error } = await supabaseClient
-      .from('temp_novel_data')
-      .select('content, metadata')
-      .eq('novel_id', novelId)
-      .like('data_type', 'outline_v%')
-      .order('metadata->version', { ascending: true });
+      .from('novel_sessions')
+      .select('content')
+      .eq('id', novelId)
+      .single();
 
     if (error) {
       Logger.error(`Error getting all outlines ${novelId}:`, error);
       throw error;
     }
 
-    return data.map(item => ({
+    return (data?.content?.outline?.iterations || []).map((item: { content: string; version: number; status: OutlineStatus }) => ({
       content: item.content,
-      version: parseInt(item.metadata.version),
-      status: item.metadata.status as OutlineStatus
+      version: item.version,
+      status: item.status
     }));
   }
 
   static async setTotalChapters(novelId: string, totalChapters: number, supabaseClient: SupabaseClient): Promise<void> {
     const { error } = await supabaseClient
-      .from('novel_generation_states')
-      .update({ total_chapters: totalChapters })
-      .eq('novel_id', novelId);
+      .from('novel_sessions')
+      .update({
+        content: supabaseClient.rpc('jsonb_deep_set', {
+          content: {
+            metadata: {
+              total_chapters: totalChapters
+            }
+          }
+        })
+      })
+      .eq('id', novelId);
 
     if (error) {
       Logger.error(`Error setting total chapters ${novelId}:`, error);
@@ -139,57 +169,69 @@ export class CheckpointManager {
   }
 
   static async updateChapter(novelId: string, chapterNumber: number, content: string, supabaseClient: SupabaseClient): Promise<void> {
+    const timestamp = new Date().toISOString();
     const { error } = await supabaseClient
-      .from('novel_chapters')
-      .insert([{ novel_id: novelId, chapter_number: chapterNumber, content }]);
+      .from('novel_sessions')
+      .update({
+        content: supabaseClient.rpc('jsonb_deep_set', {
+          content: {
+            chapters: (chapter: NovelContent['chapters']) => {
+              const chapters = chapter || [];
+              chapters[chapterNumber - 1] = {
+                number: chapterNumber,
+                content,
+                timestamp,
+                drafts: [{
+                  version: 'final',
+                  content,
+                  timestamp
+                }]
+              };
+              return chapters;
+            },
+            metadata: {
+              current_chapter: chapterNumber
+            }
+          }
+        })
+      })
+      .eq('id', novelId);
 
     if (error) {
       Logger.error(`Error updating chapter ${chapterNumber} for ${novelId}:`, error);
       throw error;
     }
 
-    const { error: stateError } = await supabaseClient
-      .from('novel_generation_states')
-      .update({ current_chapter: chapterNumber })
-      .eq('novel_id', novelId);
-
-    if (stateError) {
-      Logger.error(`Error updating state ${novelId}:`, stateError);
-      throw stateError;
-    }
-
-    const { error: tempError } = await supabaseClient
-      .from('temp_novel_data')
-      .upsert(
-        {
-          novel_id: novelId,
-          data_type: `chapter_${chapterNumber}_content`,
-          content: content,
-          metadata: { chapter_number: chapterNumber }
-        },
-        { onConflict: 'novel_id,data_type' }
-      );
-
-    if (tempError) {
-      Logger.error(`Error storing temp data chapter ${chapterNumber} ${novelId}:`, tempError);
-      throw tempError;
-    }
-
     Logger.info(`Updated Chapter ${chapterNumber} for ${novelId}`);
   }
 
   static async storeDraft(novelId: string, chapterNumber: number, draftType: string, content: string, supabaseClient: SupabaseClient): Promise<void> {
+    const timestamp = new Date().toISOString();
     const { error } = await supabaseClient
-      .from('temp_novel_data')
-      .upsert(
-        {
-          novel_id: novelId,
-          data_type: `chapter_${chapterNumber}_${draftType}`,
-          content: content,
-          metadata: { chapter_number: chapterNumber, draft_type: draftType }
-        },
-        { onConflict: 'novel_id,data_type' }
-      );
+      .from('novel_sessions')
+      .update({
+        content: supabaseClient.rpc('jsonb_deep_set', {
+          content: {
+            chapters: (chapter: NovelContent['chapters']) => {
+              const chapters = chapter || [];
+              if (!chapters[chapterNumber - 1]) {
+                chapters[chapterNumber - 1] = {
+                  number: chapterNumber,
+                  content: null,
+                  drafts: []
+                };
+              }
+              chapters[chapterNumber - 1].drafts.push({
+                version: draftType,
+                content,
+                timestamp
+              });
+              return chapters;
+            }
+          }
+        })
+      })
+      .eq('id', novelId);
 
     if (error) {
       Logger.error(`Error storing ${draftType} for Ch${chapterNumber} ${novelId}:`, error);
@@ -198,46 +240,34 @@ export class CheckpointManager {
     Logger.info(`Stored ${draftType} for Chapter ${chapterNumber} in ${novelId}`);
   }
 
-  static async cleanupTempData(novelId: string, supabaseClient: SupabaseClient): Promise<void> {
-    const { error } = await supabaseClient
-      .from('temp_novel_data')
-      .delete()
-      .eq('novel_id', novelId);
-
-    if (error) {
-      Logger.error(`Error cleaning temp data ${novelId}:`, error);
-    } else {
-      Logger.info(`Cleaned temp data for ${novelId}`);
-    }
-  }
-
   static async finishNovel(novelId: string, supabaseClient: SupabaseClient): Promise<void> {
     const { error } = await supabaseClient
-      .from('novel_generation_states')
+      .from('novel_sessions')
       .update({ status: 'completed' })
-      .eq('novel_id', novelId);
+      .eq('id', novelId);
 
     if (error) {
       Logger.error(`Error finishing novel ${novelId}:`, error);
       throw error;
     }
 
-    await this.cleanupTempData(novelId, supabaseClient);
     Logger.info(`Novel completed ${novelId}`);
   }
 
   static async errorState(novelId: string, message: string, supabaseClient: SupabaseClient): Promise<void> {
     const { error } = await supabaseClient
-      .from('novel_generation_states')
-      .update({ status: 'error', error_message: message })
-      .eq('novel_id', novelId);
+      .from('novel_sessions')
+      .update({
+        status: 'error',
+        error_message: message
+      })
+      .eq('id', novelId);
 
     if (error) {
       Logger.error(`Error marking error state ${novelId}:`, error);
       throw error;
     }
 
-    await this.cleanupTempData(novelId, supabaseClient);
     Logger.warn(`Novel errored ${novelId}: ${message}`);
   }
 } 
