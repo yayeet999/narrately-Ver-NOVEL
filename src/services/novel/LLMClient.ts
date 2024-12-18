@@ -13,8 +13,8 @@ export class LLMClient {
   constructor() {
     this.openai = new OpenAI({
       apiKey: OPENAI_API_KEY,
-      timeout: 60000, // 60 second timeout
-      maxRetries: 3
+      maxRetries: 3,
+      timeout: 60000, // Set timeout in client configuration instead
     });
     this.model = 'gpt-4o-mini';
   }
@@ -38,8 +38,7 @@ export class LLMClient {
         max_tokens: request.max_tokens,
         temperature: request.temperature,
         presence_penalty: 0,
-        frequency_penalty: 0,
-        timeout: 60000
+        frequency_penalty: 0
       });
 
       if (!completion.choices || completion.choices.length === 0) {
@@ -67,11 +66,48 @@ export class LLMClient {
             throw new Error('Rate limit exceeded. Please try again later.');
           case 500:
             throw new Error('OpenAI service error. Please try again later.');
+          case 503:
+            throw new Error('OpenAI service is temporarily unavailable. Please try again later.');
           default:
             throw new Error(`OpenAI API error: ${error.message}`);
         }
       }
       
+      throw error;
+    }
+  }
+
+  async generateStream(request: { 
+    prompt: string; 
+    max_tokens: number; 
+    temperature: number;
+  }): Promise<AsyncGenerator<string, void, unknown>> {
+    try {
+      const stream = await this.openai.chat.completions.create({
+        model: this.model,
+        messages: [
+          { 
+            role: "user", 
+            content: request.prompt 
+          }
+        ],
+        max_tokens: request.max_tokens,
+        temperature: request.temperature,
+        stream: true
+      });
+
+      async function* textStream() {
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content;
+          if (content) {
+            yield content;
+          }
+        }
+      }
+
+      return textStream();
+    } catch (error: any) {
+      Logger.error('Error in stream generation:', error);
       throw error;
     }
   }
