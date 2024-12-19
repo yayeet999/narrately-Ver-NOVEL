@@ -87,8 +87,8 @@ export class NovelStateManager {
       .eq('id', this.novelId)
       .single();
 
-    const chapters = currentState?.chapters_data?.chapters || [];
-    const chapterIndex = chapters.findIndex(ch => ch.chapter_number === chapterNumber);
+    const chapters: ChapterData[] = currentState?.chapters_data?.chapters || [];
+    const chapterIndex = chapters.findIndex((ch: ChapterData) => ch.chapter_number === chapterNumber);
     const chapterData: ChapterData = {
       chapter_number: chapterNumber,
       content,
