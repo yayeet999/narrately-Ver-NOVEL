@@ -1,5 +1,5 @@
 export interface Character {
-  name?: string;
+  name: string;
   role: 'protagonist' | 'antagonist' | 'supporting';
   archetype: string;
   age_range: string;
@@ -8,63 +8,30 @@ export interface Character {
   relationships: string[];
 }
 
-export type StoryStructure = 
-  | "Hero's Journey"
-  | "Three-Act Structure"
-  | "Nonlinear"
-  | "Parallel"
-  | "Episodic"
-  | "Circular"
-  | "Framing Device"
-  | "In Medias Res";
-
-export type ConflictType = 
-  | "person_vs_person"
-  | "person_vs_nature"
-  | "person_vs_society"
-  | "person_vs_self"
-  | "person_vs_technology"
-  | "person_vs_fate";
-
-export type ResolutionStyle = 
-  | "Conclusive"
-  | "Open-Ended"
-  | "Twist"
-  | "Circular"
-  | "Bittersweet";
-
-export type SettingType = 
-  | "Fantasy"
-  | "Urban"
-  | "Historical"
-  | "Futuristic"
-  | "Contemporary"
-  | "Post-Apocalyptic"
-  | "Space"
-  | "Rural";
+export type NovelLength = '50k-100k' | '100k-150k' | '150k+';
+export type POVType = 'first' | 'third_limited' | 'third_omniscient' | 'multiple';
+export type SentenceStructure = 'varied' | 'consistent' | 'simple' | 'complex';
+export type ParagraphLength = 'short' | 'medium' | 'long';
+export type ControversialHandling = 'avoid' | 'careful' | 'direct';
 
 export interface NovelParameters {
-  title?: string;
-  novel_length: '50k-100k' | '100k-150k' | '150k+';
-  chapter_structure: 'fixed' | 'variable';
-  average_chapter_length: number;
-  chapter_naming_style: 'numbered' | 'titled' | 'both';
+  title: string;
+  novel_length: NovelLength;
   primary_genre: string;
   secondary_genre?: string;
   primary_theme: string;
   secondary_theme?: string;
   characters: Character[];
-  setting_type: SettingType;
+  pov: POVType;
+  sentence_structure: SentenceStructure;
+  paragraph_length: ParagraphLength;
+  controversial_handling: ControversialHandling;
   world_complexity: number;
   cultural_depth: number;
   cultural_framework: string;
-  pov: 'first' | 'third_limited' | 'third_omniscient' | 'multiple';
   tone_formality: number;
   tone_descriptive: number;
   dialogue_balance: number;
-  story_structure: StoryStructure;
-  conflict_types: ConflictType[];
-  resolution_style: ResolutionStyle;
   description_density: number;
   pacing_overall: number;
   pacing_variance: number;
@@ -73,13 +40,11 @@ export interface NovelParameters {
   flashback_usage: number;
   foreshadowing_intensity: number;
   language_complexity: number;
-  sentence_structure: 'varied' | 'consistent' | 'simple' | 'complex';
-  paragraph_length: 'short' | 'medium' | 'long';
   violence_level: number;
   adult_content_level: number;
   profanity_level: number;
-  controversial_handling: 'avoid' | 'careful' | 'direct';
-  story_description: string;
+  story_description?: string;
+  processed_metrics?: ProcessedMetrics;
 }
 
 export type Genre = 'Fantasy' | 'Science Fiction' | 'Mystery' | 'Romance' | 'Literary Fiction';

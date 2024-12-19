@@ -142,5 +142,33 @@ export function validateAndFillDefaults(params: Partial<NovelParameters>): Novel
     validatedParams.conflict_types = ['person_vs_self'];
   }
 
+  // Add SQL schema compatibility validation
+  if (!validatedParams.title || typeof validatedParams.title !== 'string') {
+    throw new Error('Title is required and must be a string');
+  }
+
+  if (!validatedParams.primary_genre || typeof validatedParams.primary_genre !== 'string') {
+    throw new Error('Primary genre is required and must be a string');
+  }
+
+  if (!validatedParams.primary_theme || typeof validatedParams.primary_theme !== 'string') {
+    throw new Error('Primary theme is required and must be a string');
+  }
+
+  if (!ValidationUtils.isNonEmptyArray(validatedParams.characters)) {
+    throw new Error('At least one character is required');
+  }
+
+  // Validate processed metrics structure if present
+  if (validatedParams.processed_metrics) {
+    if (typeof validatedParams.processed_metrics.storyWeight !== 'number' ||
+        typeof validatedParams.processed_metrics.recommendedChapters !== 'number' ||
+        !Array.isArray(validatedParams.processed_metrics.subplotDistribution) ||
+        !Array.isArray(validatedParams.processed_metrics.characterGuidance) ||
+        !Array.isArray(validatedParams.processed_metrics.chapterGuidance)) {
+      throw new Error('Invalid processed metrics structure');
+    }
+  }
+
   return validatedParams;
 } 

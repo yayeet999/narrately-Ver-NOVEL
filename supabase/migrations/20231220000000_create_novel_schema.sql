@@ -1,13 +1,6 @@
--- Start fresh by dropping existing objects
-DROP TABLE IF EXISTS public.novels CASCADE;
-DROP TYPE IF EXISTS public.novel_status CASCADE;
-DROP TYPE IF EXISTS public.outline_status CASCADE;
-DROP TYPE IF EXISTS public.chapter_status CASCADE;
-DROP TYPE IF EXISTS public.novel_length CASCADE;
-DROP TYPE IF EXISTS public.pov_type CASCADE;
-DROP TYPE IF EXISTS public.sentence_structure CASCADE;
-DROP TYPE IF EXISTS public.paragraph_length CASCADE;
-DROP TYPE IF EXISTS public.controversial_handling CASCADE;
+-- Enable necessary extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Create custom types
 CREATE TYPE novel_status AS ENUM (
@@ -350,4 +343,4 @@ BEGIN
     FROM novels n
     WHERE n.id = novel_id;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql; 
