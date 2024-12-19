@@ -61,6 +61,7 @@ export function validateAndFillDefaults(params: Partial<NovelParameters>): Novel
     primary_theme: params.primary_theme || 'Coming of Age',
     secondary_theme: params.secondary_theme,
     characters: params.characters || [{
+      name: 'Protagonist',
       role: 'protagonist',
       archetype: 'The Hero',
       age_range: 'young adult',
@@ -128,6 +129,7 @@ export function validateAndFillDefaults(params: Partial<NovelParameters>): Novel
   if (!ValidationUtils.isNonEmptyArray(validatedParams.characters)) {
     Logger.warn('No characters provided. Adding default protagonist.');
     validatedParams.characters = [{
+      name: 'Protagonist',
       role: 'protagonist',
       archetype: 'The Hero',
       age_range: 'young adult',

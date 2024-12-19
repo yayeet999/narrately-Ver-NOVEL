@@ -19,7 +19,11 @@ export type StoryStructure =
   | "Hero's Journey"
   | "Nonlinear"
   | "Parallel"
-  | "Five-Act Structure";
+  | "Five-Act Structure"
+  | "Episodic"
+  | "Circular"
+  | "Framing Device"
+  | "In Medias Res";
 
 export type ConflictType = 
   | 'person_vs_person'
@@ -49,6 +53,9 @@ export type SettingType =
 export interface NovelParameters {
   title: string;
   novel_length: NovelLength;
+  chapter_structure: 'fixed' | 'variable';
+  average_chapter_length: number;
+  chapter_naming_style: 'numbered' | 'titled' | 'both';
   primary_genre: string;
   secondary_genre?: string;
   primary_theme: string;
