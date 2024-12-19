@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Logger } from '../../../../services/utils/Logger';
-import { NovelStatus, OutlineStatus, ChapterStatus, NovelData, ChapterData } from './types';
+import { NovelStatus, OutlineStatus, ChapterStatus, NovelData, ChapterData, ProcessedMetrics } from './types';
 
 export class NovelStateManager {
   private supabaseClient: SupabaseClient;
@@ -178,6 +178,32 @@ export class NovelStateManager {
     }
 
     Logger.error(`Novel ${this.novelId} entered error state:`, error);
+  }
+
+  async getProgressState(): Promise<{ currentStep: number; totalSteps: number; stage: string }> {
+    const { data, error } = await this.supabaseClient
+      .rpc('get_novel_progress', { novel_id: this.novelId });
+
+    if (error) {
+      throw new Error(`Failed to get progress state: ${error.message}`);
+    }
+
+    return {
+      currentStep: data?.current_step || 0,
+      totalSteps: data?.total_steps || 1,
+      stage: data?.current_stage || 'initializing'
+    };
+  }
+
+  async cleanupAbandonedGeneration(timeoutMinutes: number = 60): Promise<void> {
+    const { error } = await this.supabaseClient
+      .rpc('cleanup_abandoned_generations', { timeout_minutes: timeoutMinutes });
+
+    if (error) {
+      throw new Error(`Failed to cleanup abandoned generation: ${error.message}`);
+    }
+
+    Logger.info(`Cleaned up abandoned generations older than ${timeoutMinutes} minutes`);
   }
 
   private async retryOperation<T>(operation: () => Promise<T>, retries = 3): Promise<T> {

@@ -5,6 +5,9 @@ import { NovelData, NovelStatus, OutlineStatus, ChapterStatus } from '../../../p
 export const TEST_NOVEL_PARAMETERS: NovelParameters = {
   title: 'Test Novel',
   novel_length: '50k-100k',
+  chapter_structure: 'fixed',
+  average_chapter_length: 2000,
+  chapter_naming_style: 'numbered',
   primary_genre: 'Science Fiction',
   secondary_genre: 'Mystery',
   primary_theme: 'Identity',
@@ -50,7 +53,11 @@ export const TEST_NOVEL_PARAMETERS: NovelParameters = {
       relationships: ['Test Protagonist']
     }
   ],
-  story_description: 'A test novel for automated testing'
+  story_description: 'A test novel for automated testing',
+  story_structure: "Hero's Journey",
+  conflict_types: ['person_vs_person'],
+  resolution_style: 'Conclusive',
+  setting_type: 'Fantasy'
 };
 
 export function createTestSupabaseClient(): SupabaseClient {
