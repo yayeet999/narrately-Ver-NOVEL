@@ -14,6 +14,38 @@ export type SentenceStructure = 'varied' | 'consistent' | 'simple' | 'complex';
 export type ParagraphLength = 'short' | 'medium' | 'long';
 export type ControversialHandling = 'avoid' | 'careful' | 'direct';
 
+export type StoryStructure = 
+  | "Three-Act Structure"
+  | "Hero's Journey"
+  | "Nonlinear"
+  | "Parallel"
+  | "Five-Act Structure";
+
+export type ConflictType = 
+  | 'person_vs_person'
+  | 'person_vs_nature'
+  | 'person_vs_society'
+  | 'person_vs_self'
+  | 'person_vs_technology'
+  | 'person_vs_fate';
+
+export type ResolutionStyle = 
+  | 'Conclusive'
+  | 'Open-Ended'
+  | 'Twist'
+  | 'Circular'
+  | 'Bittersweet';
+
+export type SettingType = 
+  | 'Fantasy'
+  | 'Urban'
+  | 'Historical'
+  | 'Futuristic'
+  | 'Contemporary'
+  | 'Post-Apocalyptic'
+  | 'Space'
+  | 'Rural';
+
 export interface NovelParameters {
   title: string;
   novel_length: NovelLength;
@@ -45,6 +77,10 @@ export interface NovelParameters {
   profanity_level: number;
   story_description?: string;
   processed_metrics?: ProcessedMetrics;
+  story_structure: StoryStructure;
+  conflict_types: ConflictType[];
+  resolution_style: ResolutionStyle;
+  setting_type: SettingType;
 }
 
 export type Genre = 'Fantasy' | 'Science Fiction' | 'Mystery' | 'Romance' | 'Literary Fiction';
