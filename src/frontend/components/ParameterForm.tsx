@@ -42,6 +42,7 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit, disabled = fals
     profanity_level: 0,
     controversial_handling: 'careful',
     characters: [{
+      name: 'Main Character',
       role: 'protagonist',
       archetype: 'The Hero',
       age_range: '25-35',
@@ -106,12 +107,13 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ onSubmit, disabled = fals
   const addCharacter = () => {
     const updatedCharacters = [...(parameters.characters || [])];
     updatedCharacters.push({
-      role: 'supporting',
-      archetype: 'The Mentor',
-      age_range: '40-60',
-      background_archetype: 'Wise Sage',
-      arc_type: 'static',
-      relationships: []
+      name: 'Main Character',
+      role: 'protagonist',
+      archetype: 'The Hero',
+      age_range: '25-35',
+      background_archetype: 'Orphan Adventurer',
+      arc_type: 'coming_of_age',
+      relationships: ['Friend of Protagonist']
     });
     setParameters(prev => ({
       ...prev,
