@@ -14,5 +14,10 @@
         "Access-Control-Allow-Origin": "*"
       }
     }
-  ]
+  ],
+  "functions": {
+    "api/novel-checkpoints/**/*.ts": {
+      "maxDuration": 300
+    }
+  }
 } 

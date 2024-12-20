@@ -42,14 +42,44 @@ export default async function handler(
           processedParams.outlineGuidance
         );
 
-        const result = await llm.generate({
-          prompt: prompt.substring(0, 20000), // Trim to max length
-          max_tokens: 3000,
-          temperature: 0.7
+        // Split the generation into two parts for better performance
+        const structurePrompt = `${prompt}\n\nFirst, create a high-level chapter structure with brief descriptions (2-3 sentences per chapter).`;
+        const structureResult = await llm.generate({
+          prompt: structurePrompt.substring(0, 15000),
+          max_tokens: 2000,
+          temperature: 0.7,
+          stream: true
         });
 
-        if (result && result.length >= MIN_OUTLINE_LENGTH) {
-          outline = result;
+        if (!structureResult) {
+          throw new Error('Failed to generate chapter structure');
+        }
+
+        // Store initial structure
+        await supabaseClient
+          .from('novels')
+          .update({
+            outline_data: {
+              current: structureResult,
+              iterations: [{
+                content: structureResult,
+                timestamp: new Date().toISOString()
+              }]
+            }
+          })
+          .eq('id', context.novelId);
+
+        // Now expand the structure with details
+        const detailPrompt = `${prompt}\n\nExpand and add detail to this chapter structure:\n\n${structureResult}`;
+        const detailedResult = await llm.generate({
+          prompt: detailPrompt.substring(0, 15000),
+          max_tokens: 2000,
+          temperature: 0.7,
+          stream: true
+        });
+
+        if (detailedResult && detailedResult.length >= MIN_OUTLINE_LENGTH) {
+          outline = detailedResult;
         } else {
           throw new Error('Generated outline is too short');
         }
