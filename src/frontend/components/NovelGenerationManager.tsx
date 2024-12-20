@@ -33,10 +33,22 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
 
   const makeApiCall = async (endpoint: string, novelId: string): Promise<boolean> => {
     try {
+      const session = await supabase.auth.getSession();
+      if (!session.data.session) {
+        throw new Error('No active session');
+      }
+
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ novelId })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.data.session.access_token}`
+        },
+        body: JSON.stringify({
+          novelId,
+          user_id: session.data.session.user.id,
+          parameters: {} // This will be fetched from the server
+        })
       });
 
       if (!response.ok) {
@@ -64,7 +76,7 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
         // Get current novel state with error handling
         const { data: novelData, error: fetchError } = await supabase
           .from('novels')
-          .select('novel_status, outline_status, current_chapter, total_chapters, error')
+          .select('novel_status, outline_status, current_chapter, total_chapters, error, parameters')
           .eq('id', novelId)
           .single();
 
