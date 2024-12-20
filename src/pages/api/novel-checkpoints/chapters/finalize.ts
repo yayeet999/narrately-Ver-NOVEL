@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '../../../../integrations/supabase/client';
 import { Logger } from '../../../../services/utils/Logger';
-import { ApiResponse } from '../shared/types';
+import { ApiResponse, ChapterData } from '../shared/types';
 import { ValidationError, createCheckpointContext } from '../shared/validation';
 
 export default async function handler(
