@@ -14,12 +14,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
-  let novelId: string;
-  
   try {
     const context = await createCheckpointContext(req);
-    novelId = context.novelId;
-    const { parameters } = context;
+    const { novelId, parameters } = context;
     
     // Get the initial outline
     const { data: novelData, error: outlineError } = await supabase
@@ -114,7 +111,8 @@ export default async function handler(
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
     
     // Update novel status to error if revision fails
-    if (novelId) {
+    try {
+      const context = await createCheckpointContext(req);
       await supabase
         .from('novels')
         .update({
@@ -122,7 +120,9 @@ export default async function handler(
           error: message,
           updated_at: new Date().toISOString()
         })
-        .eq('id', novelId);
+        .eq('id', context.novelId);
+    } catch (updateError) {
+      Logger.error('Failed to update error status:', updateError);
     }
     
     return res.status(statusCode).json({

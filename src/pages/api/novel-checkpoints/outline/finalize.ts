@@ -8,13 +8,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
-  let novelId: string;
-  
   try {
     const context = await createCheckpointContext(req);
-    novelId = context.novelId;
+    const { novelId } = context;
     
-    // Get the second revision outline
+    // Get the second revision
     const { data: novelData, error: outlineError } = await supabase
       .from('novels')
       .select('outline_data, outline_status')
@@ -27,28 +25,14 @@ export default async function handler(
 
     // Verify we're in the correct state
     if (novelData.outline_status !== 'pass2') {
-      throw new Error('Cannot finalize outline: incorrect status');
+      throw new Error('Invalid outline status for finalization');
     }
 
-    // Extract total chapters from outline
-    const chapterMatches = novelData.outline_data.current.match(/Chapter\s+\d+/gi);
-    if (!chapterMatches) {
-      throw new Error('No chapters found in outline');
-    }
-    const totalChapters = chapterMatches.length;
-
-    if (totalChapters < 10 || totalChapters > 150) {
-      throw new Error(`Invalid chapter count: ${totalChapters}`);
-    }
-
-    // Update novel status to completed outline
+    // Store final outline with updated status
     const { error: updateError } = await supabase
       .from('novels')
       .update({
         outline_status: 'completed',
-        outline_version: 3,
-        total_chapters: totalChapters,
-        current_chapter: 0,
         novel_status: 'outline_completed',
         updated_at: new Date().toISOString()
       })
@@ -58,7 +42,7 @@ export default async function handler(
       throw updateError;
     }
 
-    Logger.info(`Outline finalized for novel ${novelId} with ${totalChapters} chapters`);
+    Logger.info(`Outline finalized for novel ${novelId}`);
     return res.status(200).json({
       success: true,
       novelId: novelId
@@ -70,7 +54,8 @@ export default async function handler(
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
     
     // Update novel status to error if finalization fails
-    if (novelId) {
+    try {
+      const context = await createCheckpointContext(req);
       await supabase
         .from('novels')
         .update({
@@ -78,7 +63,9 @@ export default async function handler(
           error: message,
           updated_at: new Date().toISOString()
         })
-        .eq('id', novelId);
+        .eq('id', context.novelId);
+    } catch (updateError) {
+      Logger.error('Failed to update error status:', updateError);
     }
     
     return res.status(statusCode).json({

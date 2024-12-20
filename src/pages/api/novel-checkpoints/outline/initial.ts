@@ -5,8 +5,7 @@ import { ApiResponse } from '../shared/types';
 import { ValidationError, createCheckpointContext } from '../shared/validation';
 import { StoryParameterProcessor } from '../../../../services/novel/StoryParameterProcessor';
 import { llm } from '../../../../services/novel/LLMClient';
-import { outlinePrompt } from '../../../../services/novel/PromptTemplates';
-import { generateOutlineInstructions } from '../../../../services/novel/ParameterIntegration';
+import { outlineGenerationPrompt } from '../../../../services/novel/PromptTemplates';
 
 const MIN_OUTLINE_LENGTH = 1000;
 const MAX_RETRIES = 3;
@@ -18,20 +17,18 @@ export default async function handler(
   try {
     const context = await createCheckpointContext(req);
     const { novelId, parameters } = context;
-    
+
     // Process parameters for guidance
     const processedParams = StoryParameterProcessor.processParameters(parameters);
-    Logger.info('Parameters processed for outline generation');
+    Logger.info('Parameters processed for initial outline');
 
     // Generate initial outline
     let attempts = 0;
-    let outline: string | null = null;
+    let initialOutline: string | null = null;
 
-    while (attempts < MAX_RETRIES && !outline) {
+    while (attempts < MAX_RETRIES && !initialOutline) {
       try {
-        const outlineInstructions = generateOutlineInstructions(parameters);
-        const prompt = outlinePrompt(parameters, outlineInstructions).substring(0, 20000);
-
+        const prompt = outlineGenerationPrompt(parameters).substring(0, 20000);
         const result = await llm.generate({
           prompt,
           max_tokens: 3000,
@@ -39,36 +36,37 @@ export default async function handler(
         });
 
         if (result && result.length >= MIN_OUTLINE_LENGTH) {
-          outline = result;
+          initialOutline = result;
         } else {
           throw new Error('Generated outline is too short');
         }
       } catch (error) {
         attempts++;
-        Logger.warn(`Outline generation attempt ${attempts} failed:`, error);
+        Logger.warn(`Initial outline attempt ${attempts} failed:`, error);
         if (attempts === MAX_RETRIES) throw error;
         await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
       }
     }
 
-    if (!outline) {
-      throw new Error('Failed to generate outline after multiple attempts');
+    if (!initialOutline) {
+      throw new Error('Failed to generate initial outline after multiple attempts');
     }
 
-    // Store initial outline with proper status and version
+    // Store initial outline with updated status and version
     const { error: updateError } = await supabase
       .from('novels')
       .update({
         outline_status: 'initial',
         outline_version: 0,
         outline_data: {
-          current: outline,
-          iterations: [{
-            content: outline,
-            timestamp: new Date().toISOString()
-          }]
+          current: initialOutline,
+          iterations: [
+            {
+              content: initialOutline,
+              timestamp: new Date().toISOString()
+            }
+          ]
         },
-        novel_status: 'outline_in_progress',
         updated_at: new Date().toISOString()
       })
       .eq('id', novelId);
@@ -77,26 +75,31 @@ export default async function handler(
       throw updateError;
     }
 
-    Logger.info(`Initial outline generated for novel ${novelId}`);
+    Logger.info(`Initial outline completed for novel ${novelId}`);
     return res.status(200).json({
       success: true,
       novelId: novelId
     });
 
   } catch (error) {
-    Logger.error('Error in outline generation:', error);
+    Logger.error('Error in initial outline:', error);
     const statusCode = error instanceof ValidationError ? 400 : 500;
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
     
     // Update novel status to error if generation fails
-    await supabase
-      .from('novels')
-      .update({
-        novel_status: 'error',
-        error: message,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', novelId);
+    try {
+      const context = await createCheckpointContext(req);
+      await supabase
+        .from('novels')
+        .update({
+          novel_status: 'error',
+          error: message,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', context.novelId);
+    } catch (updateError) {
+      Logger.error('Failed to update error status:', updateError);
+    }
     
     return res.status(statusCode).json({
       success: false,

@@ -14,14 +14,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
-  let novelId: string;
-  
   try {
     const context = await createCheckpointContext(req);
-    novelId = context.novelId;
-    const { parameters } = context;
+    const { novelId, parameters } = context;
     
-    // Get the first revision outline
+    // Get the first revision
     const { data: novelData, error: outlineError } = await supabase
       .from('novels')
       .select('outline_data, outline_status')
@@ -37,7 +34,7 @@ export default async function handler(
       throw new Error('Invalid outline status for second revision');
     }
 
-    const firstRevisionOutline = novelData.outline_data.current;
+    const firstRevision = novelData.outline_data.current;
 
     // Process parameters for guidance
     const processedParams = StoryParameterProcessor.processParameters(parameters);
@@ -51,7 +48,7 @@ export default async function handler(
       try {
         const prompt = outlineRefinementPrompt(
           parameters,
-          firstRevisionOutline,
+          firstRevision,
           2
         ).substring(0, 20000);
 
@@ -114,7 +111,8 @@ export default async function handler(
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
     
     // Update novel status to error if revision fails
-    if (novelId) {
+    try {
+      const context = await createCheckpointContext(req);
       await supabase
         .from('novels')
         .update({
@@ -122,7 +120,9 @@ export default async function handler(
           error: message,
           updated_at: new Date().toISOString()
         })
-        .eq('id', novelId);
+        .eq('id', context.novelId);
+    } catch (updateError) {
+      Logger.error('Failed to update error status:', updateError);
     }
     
     return res.status(statusCode).json({

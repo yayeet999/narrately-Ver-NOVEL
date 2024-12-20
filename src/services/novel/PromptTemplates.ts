@@ -172,4 +172,24 @@ ${params.characters.map((c,i)=>`Character ${i+1}: ${c.role}, ${c.archetype}, ${c
 **Description**
 ${params.story_description}
 `.trim();
-} 
+}
+
+export const outlineGenerationPrompt = (parameters: any) => {
+  return `You are a professional novelist tasked with creating a detailed outline for a novel based on the following parameters:
+
+${JSON.stringify(parameters, null, 2)}
+
+Please create a chapter-by-chapter outline that:
+1. Follows a clear narrative arc with rising action, climax, and resolution
+2. Develops characters and their relationships naturally
+3. Incorporates the specified themes and elements
+4. Maintains consistent pacing and engagement
+5. Balances main plot and subplots effectively
+
+Format each chapter as:
+
+Chapter X: [Title]
+[2-3 paragraphs describing key events, character development, and plot progression]
+
+Begin the outline now:`;
+}; 
