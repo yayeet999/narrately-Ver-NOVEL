@@ -2,6 +2,30 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { Logger } from '../../../../services/utils/Logger';
 import { NovelStatus, OutlineStatus, ChapterStatus, NovelData, ChapterData, ProcessedMetrics } from './types';
 
+interface OutlineData {
+  current: {
+    title: string;
+    chapters: Array<{
+      number: number;
+      title: string;
+      summary: string;
+      events: string[];
+      character_arcs: Array<{
+        character: string;
+        development: string;
+        emotional_state: string;
+      }>;
+      themes: string[];
+      pacing: string;
+      setting_details: string;
+    }>;
+  } | null;
+  iterations: Array<{
+    content: any;
+    timestamp: string;
+  }>;
+}
+
 export class NovelStateManager {
   private supabaseClient: SupabaseClient;
   private novelId: string;
@@ -45,39 +69,59 @@ export class NovelStateManager {
     Logger.info(`Updated novel ${this.novelId} status to ${status}`);
   }
 
-  async updateOutlineStatus(status: OutlineStatus, version: number, content: string): Promise<void> {
-    const { data: currentState } = await this.supabaseClient
-      .from('novels')
-      .select('outline_data')
-      .eq('id', this.novelId)
-      .single();
+  async updateOutlineStatus(
+    outline: any,
+    status: string,
+    version: number
+  ): Promise<void> {
+    try {
+      // Get current outline data
+      const { data: currentData, error: fetchError } = await this.supabaseClient
+        .from('novels')
+        .select('outline_data')
+        .eq('id', this.novelId)
+        .single();
 
-    const iterations = currentState?.outline_data?.iterations || [];
-    iterations.push({
-      content,
-      timestamp: new Date().toISOString()
-    });
+      if (fetchError) {
+        throw fetchError;
+      }
 
-    const { error } = await this.retryOperation(async () => {
-      return await this.supabaseClient
+      // Prepare the new outline data
+      const currentOutlineData: OutlineData = currentData?.outline_data || { current: null, iterations: [] };
+      
+      // Only store the changes in iterations
+      const changes = {
+        ...currentOutlineData,
+        current: outline,
+        iterations: [
+          ...currentOutlineData.iterations,
+          {
+            content: outline,
+            timestamp: new Date().toISOString()
+          }
+        ]
+      };
+
+      // Update the novel record
+      const { error: updateError } = await this.supabaseClient
         .from('novels')
         .update({
           outline_status: status,
           outline_version: version,
-          outline_data: {
-            current: content,
-            iterations
-          },
+          outline_data: changes,
           updated_at: new Date().toISOString()
         })
         .eq('id', this.novelId);
-    });
 
-    if (error) {
-      throw new Error(`Failed to update outline status: ${error.message}`);
+      if (updateError) {
+        throw updateError;
+      }
+
+      Logger.info(`Updated outline status to ${status} for novel ${this.novelId}`);
+    } catch (error) {
+      Logger.error('Error updating outline status:', error);
+      throw error;
     }
-
-    Logger.info(`Updated novel ${this.novelId} outline status to ${status} (v${version})`);
   }
 
   async updateChapter(
@@ -220,5 +264,66 @@ export class NovelStateManager {
       }
     }
     throw new Error('Operation failed after retries');
+  }
+}
+
+export async function validateOutlineStructure(outline: any): Promise<boolean> {
+  try {
+    if (!outline || typeof outline !== 'object') {
+      return false;
+    }
+
+    if (!outline.title || !Array.isArray(outline.chapters)) {
+      return false;
+    }
+
+    for (const chapter of outline.chapters) {
+      if (!chapter.number || !chapter.title || !chapter.summary ||
+          !Array.isArray(chapter.events) || !Array.isArray(chapter.character_arcs) ||
+          !Array.isArray(chapter.themes) || !chapter.pacing || !chapter.setting_details) {
+        return false;
+      }
+
+      for (const arc of chapter.character_arcs) {
+        if (!arc.character || !arc.development || !arc.emotional_state) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  } catch (error) {
+    Logger.error('Error validating outline structure:', error);
+    return false;
+  }
+}
+
+export async function getLatestOutline(
+  supabase: SupabaseClient,
+  novelId: string
+): Promise<{ content: any; version: number; status: string } | null> {
+  try {
+    const { data, error } = await supabase
+      .from('novels')
+      .select('outline_data, outline_version, outline_status')
+      .eq('id', novelId)
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.outline_data?.current) {
+      return null;
+    }
+
+    return {
+      content: data.outline_data.current,
+      version: data.outline_version,
+      status: data.outline_status
+    };
+  } catch (error) {
+    Logger.error('Error getting latest outline:', error);
+    throw error;
   }
 } 

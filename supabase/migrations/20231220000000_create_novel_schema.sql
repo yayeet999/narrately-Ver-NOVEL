@@ -76,8 +76,17 @@ CREATE TABLE novels (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
     CONSTRAINT valid_outline_data CHECK (
-        jsonb_typeof(outline_data->'current') IN ('string', 'null') AND
-        jsonb_typeof(outline_data->'iterations') = 'array'
+        (
+            jsonb_typeof(outline_data->'current') = 'object' AND
+            (outline_data->'current' ? 'title') AND 
+            (outline_data->'current' ? 'chapters') AND 
+            jsonb_typeof(outline_data->'current'->'chapters') = 'array'
+        )
+        OR 
+        (
+            jsonb_typeof(outline_data->'current') = 'null'
+        )
+        AND jsonb_typeof(outline_data->'iterations') = 'array'
     ),
     CONSTRAINT valid_chapters_data CHECK (
         jsonb_typeof(chapters_data->'chapters') = 'array'

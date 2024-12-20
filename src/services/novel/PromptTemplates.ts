@@ -1,41 +1,109 @@
 import { NovelParameters } from './NovelParameters';
 
-export function outlinePrompt(params: NovelParameters, integrationNotes: string, outlineGuidance?: string): string {
+interface OutlineParameters {
+  title: string;
+  primary_genre: string;
+  primary_theme: string;
+  characters: Array<{
+    name: string;
+    role: string;
+    archetype: string;
+    arc_type: string;
+  }>;
+  story_description: string;
+  story_structure: string;
+}
+
+export function outlinePrompt(params: OutlineParameters, integrationNotes?: string, outlineGuidance?: string): string {
   return `
-${integrationNotes}
+You are a world-class author creating a detailed novel outline based on the following parameters.
 
 ${outlineGuidance ? `ADDITIONAL OUTLINE GUIDANCE:\n${outlineGuidance}\n\n` : ''}
 
-You are a world-class author creating a detailed, world-class novel outline based on the following parameters.
+PARAMETERS:
+Title: ${params.title}
+Genre: ${params.primary_genre}
+Theme: ${params.primary_theme}
+Story Structure: ${params.story_structure}
+Characters:
+${params.characters.map(char => `- ${char.name} (${char.role}): ${char.archetype}, Arc: ${char.arc_type}`).join('\n')}
 
-${parametersAsText(params)}
+Story Description:
+${params.story_description}
 
-Your task:
-- Produce a very detailed outline for the entire novel.
-- Indicate exactly how many chapters there will be.
-- Describe each chapter's key events, character developments, conflicts, and thematic progressions.
-- Ensure the outline sets the stage for a narrative of high quality, rich complexity, emotional depth, and thematic resonance.
-`.trim();
+INSTRUCTIONS:
+Your task is to create a detailed outline in the following JSON format:
+{
+  "title": "Novel Title",
+  "chapters": [
+    {
+      "number": 1,
+      "title": "Chapter Title",
+      "summary": "Detailed chapter summary",
+      "events": ["Key event 1", "Key event 2", ...],
+      "character_arcs": [
+        {
+          "character": "Character Name",
+          "development": "Character development in this chapter",
+          "emotional_state": "Character's emotional journey"
+        }
+      ],
+      "themes": ["Theme exploration 1", "Theme exploration 2"],
+      "pacing": "Description of chapter's pacing",
+      "setting_details": "Important setting elements"
+    }
+  ]
 }
 
-export function outlineRefinementPrompt(params: NovelParameters, currentOutline: string, passNumber: number): string {
+Requirements:
+1. Follow the story structure: ${params.story_structure}
+2. Each chapter should advance both plot and character development
+3. Maintain consistent character arcs and motivations
+4. Include proper setup and payoff for major plot points
+5. Ensure thematic elements are woven throughout
+6. Balance exposition, action, and character moments
+
+Output only valid JSON that matches this structure exactly.`.trim();
+}
+
+export function outlineRefinementPrompt(params: OutlineParameters, currentOutline: string, passNumber: number): string {
   return `
-You have an existing novel outline (below). This is Outline Refinement Pass #${passNumber}.
-Your goal: Improve and refine the outline further based on parameters and instructions.
+You are refining a novel outline. This is Refinement Pass #${passNumber}.
 
-Focus on:
-- Adding more depth to character arcs, emotional states, thematic progressions.
-- For pass #1: Enhance detail, clarify pacing, add emotional beats, subplots, thematic checkpoints.
-- For pass #2: Add even finer detail on character relationships, subtle foreshadowing, cultural/world richness, and ensuring structural integrity matches the desired story structure.
-
-Current Outline:
+CURRENT OUTLINE:
 ${currentOutline}
 
-Parameters:
-${parametersAsText(params)}
+PARAMETERS:
+Title: ${params.title}
+Genre: ${params.primary_genre}
+Theme: ${params.primary_theme}
+Story Structure: ${params.story_structure}
 
-Refine this outline again. Output the improved outline.
-`.trim();
+REFINEMENT INSTRUCTIONS:
+${passNumber === 1 ? `
+Pass 1 Focus:
+- Enhance chapter summaries with more specific details
+- Add emotional depth to character arcs
+- Ensure proper pacing and story structure
+- Add subplot threads and their progression
+- Verify theme integration in each chapter
+` : `
+Pass 2 Focus:
+- Fine-tune character relationships and interactions
+- Add subtle foreshadowing elements
+- Enhance setting descriptions and world-building
+- Ensure consistent tone and style
+- Verify narrative cohesion and plot threads
+`}
+
+Output Requirements:
+1. Maintain the same JSON structure as the input
+2. Every chapter must have all required fields
+3. Focus on deepening and enriching existing content
+4. Ensure all character arcs progress logically
+5. Maintain consistency with the story parameters
+
+Output only valid JSON that matches the original structure.`.trim();
 }
 
 export function chapterDraftPrompt(params: NovelParameters, outlineSegment: string, previousChapters: string[], chapterNumber: number, integrationNotes: string): string {

@@ -10,6 +10,20 @@ import { outlineGenerationPrompt } from '../../../../services/novel/PromptTempla
 const MIN_OUTLINE_LENGTH = 1000;
 const MAX_RETRIES = 3;
 
+interface OutlineParameters {
+  title: string;
+  primary_genre: string;
+  primary_theme: string;
+  characters: Array<{
+    name: string;
+    role: string;
+    archetype: string;
+    arc_type: string;
+  }>;
+  story_description: string;
+  story_structure: string;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
@@ -18,6 +32,21 @@ export default async function handler(
   const { novelId, parameters } = context;
 
   try {
+    // Extract only necessary parameters
+    const outlineParams: OutlineParameters = {
+      title: parameters.title,
+      primary_genre: parameters.primary_genre,
+      primary_theme: parameters.primary_theme,
+      characters: parameters.characters.map(char => ({
+        name: char.name,
+        role: char.role,
+        archetype: char.archetype,
+        arc_type: char.arc_type
+      })),
+      story_description: parameters.story_description,
+      story_structure: parameters.story_structure
+    };
+
     // Update status to show we're starting outline generation
     await supabase
       .from('novels')
@@ -30,7 +59,7 @@ export default async function handler(
       .eq('id', novelId);
 
     // Process parameters for guidance
-    const processedParams = StoryParameterProcessor.processParameters(parameters);
+    const processedParams = StoryParameterProcessor.processParameters(outlineParams);
     Logger.info('Parameters processed for initial outline');
 
     // Generate initial outline
@@ -41,18 +70,23 @@ export default async function handler(
     while (attempts < MAX_RETRIES && !initialOutline) {
       try {
         Logger.info(`Attempt ${attempts + 1} to generate initial outline`);
-        const prompt = outlineGenerationPrompt(parameters).substring(0, 20000);
+        const prompt = outlineGenerationPrompt(outlineParams).substring(0, 20000);
         const result = await llm.generate({
           prompt,
-          max_tokens: 3000,
+          max_tokens: 4000, // Increased for more detailed outlines
           temperature: 0.7
         });
 
-        if (result && result.length >= MIN_OUTLINE_LENGTH) {
+        // Validate the outline structure
+        try {
+          const outlineData = JSON.parse(result);
+          if (!outlineData.title || !Array.isArray(outlineData.chapters)) {
+            throw new Error('Invalid outline structure');
+          }
           initialOutline = result;
           Logger.info('Successfully generated initial outline');
-        } else {
-          throw new Error('Generated outline is too short');
+        } catch (parseError) {
+          throw new Error('Generated outline is not in valid JSON format');
         }
       } catch (error) {
         attempts++;
@@ -60,7 +94,6 @@ export default async function handler(
         Logger.warn(`Initial outline attempt ${attempts} failed:`, error);
         
         if (attempts < MAX_RETRIES) {
-          // Update status to show retry
           await supabase
             .from('novels')
             .update({
@@ -69,7 +102,6 @@ export default async function handler(
             })
             .eq('id', novelId);
           
-          // Wait before retry with exponential backoff
           await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, attempts), 10000)));
         }
       }
@@ -87,10 +119,10 @@ export default async function handler(
         outline_status: 'initial',
         outline_version: 0,
         outline_data: {
-          current: initialOutline,
+          current: JSON.parse(initialOutline),
           iterations: [
             {
-              content: initialOutline,
+              content: JSON.parse(initialOutline),
               timestamp: new Date().toISOString()
             }
           ]
@@ -115,7 +147,6 @@ export default async function handler(
     const statusCode = error instanceof ValidationError ? 400 : 500;
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
     
-    // Update novel status to error
     try {
       await supabase
         .from('novels')
