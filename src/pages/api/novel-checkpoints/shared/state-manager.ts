@@ -80,7 +80,11 @@ export class NovelStateManager {
     Logger.info(`Updated novel ${this.novelId} outline status to ${status} (v${version})`);
   }
 
-  async updateChapter(chapterNumber: number, content: string, status: ChapterStatus = 'initial'): Promise<void> {
+  async updateChapter(
+    chapterNumber: number, 
+    content: string, 
+    status: ChapterStatus = 'initial' as ChapterStatus
+  ): Promise<void> {
     const { data: currentState } = await this.supabaseClient
       .from('novels')
       .select('chapters_data, current_chapter')
@@ -166,7 +170,7 @@ export class NovelStateManager {
       return await this.supabaseClient
         .from('novels')
         .update({
-          novel_status: 'error',
+          novel_status: NovelStatus.Error,
           error: error.message,
           updated_at: new Date().toISOString()
         })
