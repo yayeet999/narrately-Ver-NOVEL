@@ -78,7 +78,9 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
         );
       }
 
-      return true;
+      const responseData = await response.json();
+      return responseData.success === true;
+
     } catch (error) {
       Logger.error('API call failed:', error);
       if (retryCount < MAX_RETRIES) {
