@@ -14,9 +14,20 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
+  const context = await createCheckpointContext(req);
+  const { novelId, parameters } = context;
+
   try {
-    const context = await createCheckpointContext(req);
-    const { novelId, parameters } = context;
+    // Update status to show we're starting outline generation
+    await supabase
+      .from('novels')
+      .update({
+        novel_status: 'outline_in_progress',
+        outline_status: 'generating',
+        error: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', novelId);
 
     // Process parameters for guidance
     const processedParams = StoryParameterProcessor.processParameters(parameters);
@@ -25,9 +36,11 @@ export default async function handler(
     // Generate initial outline
     let attempts = 0;
     let initialOutline: string | null = null;
+    let lastError: Error | null = null;
 
     while (attempts < MAX_RETRIES && !initialOutline) {
       try {
+        Logger.info(`Attempt ${attempts + 1} to generate initial outline`);
         const prompt = outlineGenerationPrompt(parameters).substring(0, 20000);
         const result = await llm.generate({
           prompt,
@@ -37,22 +50,36 @@ export default async function handler(
 
         if (result && result.length >= MIN_OUTLINE_LENGTH) {
           initialOutline = result;
+          Logger.info('Successfully generated initial outline');
         } else {
           throw new Error('Generated outline is too short');
         }
       } catch (error) {
         attempts++;
+        lastError = error instanceof Error ? error : new Error('Unknown error occurred');
         Logger.warn(`Initial outline attempt ${attempts} failed:`, error);
-        if (attempts === MAX_RETRIES) throw error;
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+        
+        if (attempts < MAX_RETRIES) {
+          // Update status to show retry
+          await supabase
+            .from('novels')
+            .update({
+              error: `Attempt ${attempts} failed: ${lastError.message}. Retrying...`,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', novelId);
+          
+          // Wait before retry with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, attempts), 10000)));
+        }
       }
     }
 
     if (!initialOutline) {
-      throw new Error('Failed to generate initial outline after multiple attempts');
+      throw new Error(lastError?.message || 'Failed to generate initial outline after multiple attempts');
     }
 
-    // Store initial outline with updated status and version
+    // Store initial outline with updated status
     const { error: updateError } = await supabase
       .from('novels')
       .update({
@@ -68,6 +95,7 @@ export default async function handler(
             }
           ]
         },
+        error: null,
         updated_at: new Date().toISOString()
       })
       .eq('id', novelId);
@@ -87,17 +115,17 @@ export default async function handler(
     const statusCode = error instanceof ValidationError ? 400 : 500;
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
     
-    // Update novel status to error if generation fails
+    // Update novel status to error
     try {
-      const context = await createCheckpointContext(req);
       await supabase
         .from('novels')
         .update({
           novel_status: 'error',
+          outline_status: 'error',
           error: message,
           updated_at: new Date().toISOString()
         })
-        .eq('id', context.novelId);
+        .eq('id', novelId);
     } catch (updateError) {
       Logger.error('Failed to update error status:', updateError);
     }

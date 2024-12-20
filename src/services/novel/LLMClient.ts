@@ -11,12 +11,14 @@ interface GenerateOptions {
 class LLMClient {
   private openai: OpenAI;
   private model = 'gpt-4';
+  private readonly MAX_RETRIES = 3;
+  private readonly TIMEOUT = 300000; // 5 minutes
 
   constructor() {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
-      maxRetries: 3,
-      timeout: 60000,
+      maxRetries: this.MAX_RETRIES,
+      timeout: this.TIMEOUT,
     });
   }
 
@@ -25,13 +27,16 @@ class LLMClient {
       const { prompt, max_tokens, temperature, stream = false } = options;
 
       if (stream) {
-        const response = await this.openai.chat.completions.create({
-          model: this.model,
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens,
-          temperature,
-          stream: true,
-        });
+        const response = await this.openai.chat.completions.create(
+          {
+            model: this.model,
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens,
+            temperature,
+            stream: true,
+          },
+          { timeout: this.TIMEOUT }
+        );
 
         let fullContent = '';
         for await (const chunk of response) {
@@ -42,17 +47,36 @@ class LLMClient {
         return fullContent;
       }
 
-      const response = await this.openai.chat.completions.create({
-        model: this.model,
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens,
-        temperature,
-        stream: false,
-      });
+      const response = await this.openai.chat.completions.create(
+        {
+          model: this.model,
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens,
+          temperature,
+          stream: false,
+        },
+        { timeout: this.TIMEOUT }
+      );
 
-      return response.choices[0]?.message?.content || '';
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No content received from OpenAI');
+      }
+
+      return content;
     } catch (error) {
-      Logger.error('Error in LLM generation:', error);
+      if (error instanceof Error) {
+        Logger.error('Error in LLM generation:', {
+          error: error.message,
+          name: error.name,
+          stack: error.stack
+        });
+        if (error.message.includes('timeout')) {
+          throw new Error('OpenAI request timed out after 5 minutes');
+        }
+      } else {
+        Logger.error('Unknown error in LLM generation:', error);
+      }
       throw error;
     }
   }
