@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../../../integrations/supabase/client';
 import { Logger } from '../../../../services/utils/Logger';
 import { ApiResponse } from '../shared/types';
 import { ValidationError, createCheckpointContext } from '../shared/validation';
@@ -15,30 +15,24 @@ export default async function handler(
   res: NextApiResponse<ApiResponse>
 ) {
   try {
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
-
-    // Validate request and create context
-    const context = await createCheckpointContext(req, supabaseClient);
+    const context = await createCheckpointContext(req);
+    const { novelId, parameters } = context;
     
     // Get the first revision outline
-    const { data: outlineData, error: outlineError } = await supabaseClient
+    const { data: outlineData, error: outlineError } = await supabase
       .from('novels')
-      .select('outline_data')
-      .eq('id', context.novelId)
+      .select('outline_data, outline_status')
+      .eq('id', novelId)
       .single();
 
     if (outlineError || !outlineData?.outline_data?.current) {
-      throw new Error('Failed to fetch first revision outline');
+      throw new Error('Failed to fetch outline data');
     }
 
     const firstRevisionOutline = outlineData.outline_data.current;
 
     // Process parameters for guidance
-    const processedParams = StoryParameterProcessor.processParameters(context.parameters);
+    const processedParams = StoryParameterProcessor.processParameters(parameters);
     Logger.info('Parameters processed for second outline revision');
 
     // Perform second revision
@@ -48,7 +42,7 @@ export default async function handler(
     while (attempts < MAX_RETRIES && !revisedOutline) {
       try {
         const prompt = outlineRefinementPrompt(
-          context.parameters,
+          parameters,
           firstRevisionOutline,
           2
         ).substring(0, 20000); // Trim to max length
@@ -77,7 +71,7 @@ export default async function handler(
     }
 
     // Store second revision
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await supabase
       .from('novels')
       .update({
         outline_status: 'pass2',
@@ -94,21 +88,20 @@ export default async function handler(
           ]
         }
       })
-      .eq('id', context.novelId);
+      .eq('id', novelId);
 
     if (updateError) {
       throw updateError;
     }
 
-    Logger.info(`Second outline revision completed for novel ${context.novelId}`);
+    Logger.info(`Second outline revision completed for novel ${novelId}`);
     return res.status(200).json({
       success: true,
-      novelId: context.novelId
+      novelId: novelId
     });
 
   } catch (error) {
-    Logger.error('Error in second outline revision:', error);
-    
+    Logger.error('Error in outline revision:', error);
     const statusCode = error instanceof ValidationError ? 400 : 500;
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
     

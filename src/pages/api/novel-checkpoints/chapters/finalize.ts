@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../../../integrations/supabase/client';
 import { Logger } from '../../../../services/utils/Logger';
-import { ApiResponse, ChapterData } from '../shared/types';
+import { ApiResponse } from '../shared/types';
 import { ValidationError, createCheckpointContext } from '../shared/validation';
 
 export default async function handler(
@@ -9,20 +9,14 @@ export default async function handler(
   res: NextApiResponse<ApiResponse>
 ) {
   try {
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
-
-    // Validate request and create context
-    const context = await createCheckpointContext(req, supabaseClient);
+    const context = await createCheckpointContext(req);
+    const { novelId } = context;
     
     // Get the novel data and chapter info
-    const { data: novelData, error: novelError } = await supabaseClient
+    const { data: novelData, error: novelError } = await supabase
       .from('novels')
       .select('chapters_data, current_chapter, total_chapters')
-      .eq('id', context.novelId)
+      .eq('id', novelId)
       .single();
 
     if (novelError || !novelData?.chapters_data?.chapters) {
@@ -55,7 +49,7 @@ export default async function handler(
     const novelStatus = isLastChapter ? 'completed' : 'in_progress';
 
     // Update novel with completed chapter
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await supabase
       .from('novels')
       .update({
         chapters_data: {
@@ -64,16 +58,16 @@ export default async function handler(
         },
         novel_status: novelStatus
       })
-      .eq('id', context.novelId);
+      .eq('id', novelId);
 
     if (updateError) {
       throw updateError;
     }
 
-    Logger.info(`Chapter ${currentChapter} finalized for novel ${context.novelId}`);
+    Logger.info(`Chapter ${currentChapter} finalized for novel ${novelId}`);
     return res.status(200).json({
       success: true,
-      novelId: context.novelId
+      novelId: novelId
     });
 
   } catch (error) {

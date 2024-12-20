@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../../../integrations/supabase/client';
 import { Logger } from '../../../../services/utils/Logger';
 import { ApiResponse, ChapterData } from '../shared/types';
 import { ValidationError, createCheckpointContext } from '../shared/validation';
@@ -17,20 +17,14 @@ export default async function handler(
   res: NextApiResponse<ApiResponse>
 ) {
   try {
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
-
-    // Validate request and create context
-    const context = await createCheckpointContext(req, supabaseClient);
+    const context = await createCheckpointContext(req);
+    const { novelId, parameters } = context;
     
     // Get the novel data and chapter info
-    const { data: novelData, error: novelError } = await supabaseClient
+    const { data: novelData, error: novelError } = await supabase
       .from('novels')
       .select('chapters_data, current_chapter')
-      .eq('id', context.novelId)
+      .eq('id', novelId)
       .single();
 
     if (novelError || !novelData?.chapters_data?.chapters) {
@@ -47,7 +41,7 @@ export default async function handler(
     }
 
     // Process parameters for guidance
-    const processedParams = StoryParameterProcessor.processParameters(context.parameters);
+    const processedParams = StoryParameterProcessor.processParameters(parameters);
     Logger.info(`Processing first revision for chapter ${currentChapter}`);
 
     // Generate revision
@@ -56,7 +50,7 @@ export default async function handler(
 
     while (attempts < MAX_RETRIES && !revisedContent) {
       try {
-        const refinementNotes = generateRefinementInstructions(context.parameters);
+        const refinementNotes = generateRefinementInstructions(parameters);
         const instructions = chapterRefinementInstructions(1);
         const prompt = refinementPrompt(
           chapterData.content,
@@ -100,7 +94,7 @@ export default async function handler(
         : ch
     );
 
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await supabase
       .from('novels')
       .update({
         chapters_data: {
@@ -108,7 +102,7 @@ export default async function handler(
           chapters: updatedChapters
         }
       })
-      .eq('id', context.novelId);
+      .eq('id', novelId);
 
     if (updateError) {
       throw updateError;
@@ -117,7 +111,7 @@ export default async function handler(
     Logger.info(`First revision completed for chapter ${currentChapter}`);
     return res.status(200).json({
       success: true,
-      novelId: context.novelId
+      novelId: novelId
     });
 
   } catch (error) {

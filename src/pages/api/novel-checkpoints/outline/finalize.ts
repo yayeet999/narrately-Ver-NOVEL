@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../../../integrations/supabase/client';
 import { Logger } from '../../../../services/utils/Logger';
 import { ApiResponse } from '../shared/types';
 import { ValidationError, createCheckpointContext } from '../shared/validation';
@@ -9,20 +9,14 @@ export default async function handler(
   res: NextApiResponse<ApiResponse>
 ) {
   try {
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
-
-    // Validate request and create context
-    const context = await createCheckpointContext(req, supabaseClient);
+    const context = await createCheckpointContext(req);
+    const { novelId } = context;
     
     // Get the second revision outline
-    const { data: outlineData, error: outlineError } = await supabaseClient
+    const { data: outlineData, error: outlineError } = await supabase
       .from('novels')
       .select('outline_data, outline_status')
-      .eq('id', context.novelId)
+      .eq('id', novelId)
       .single();
 
     if (outlineError || !outlineData?.outline_data?.current) {
@@ -46,7 +40,7 @@ export default async function handler(
     }
 
     // Update novel status to completed outline
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await supabase
       .from('novels')
       .update({
         outline_status: 'completed',
@@ -55,16 +49,16 @@ export default async function handler(
         current_chapter: 0,
         novel_status: 'outline_completed'
       })
-      .eq('id', context.novelId);
+      .eq('id', novelId);
 
     if (updateError) {
       throw updateError;
     }
 
-    Logger.info(`Outline finalized for novel ${context.novelId} with ${totalChapters} chapters`);
+    Logger.info(`Outline finalized for novel ${novelId} with ${totalChapters} chapters`);
     return res.status(200).json({
       success: true,
-      novelId: context.novelId
+      novelId: novelId
     });
 
   } catch (error) {

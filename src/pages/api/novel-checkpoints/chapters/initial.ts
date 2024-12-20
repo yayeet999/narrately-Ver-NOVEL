@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../../../integrations/supabase/client';
 import { Logger } from '../../../../services/utils/Logger';
 import { ApiResponse, ChapterData } from '../shared/types';
 import { ValidationError, createCheckpointContext } from '../shared/validation';
@@ -17,20 +17,14 @@ export default async function handler(
   res: NextApiResponse<ApiResponse>
 ) {
   try {
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
-
-    // Validate request and create context
-    const context = await createCheckpointContext(req, supabaseClient);
+    const context = await createCheckpointContext(req);
+    const { novelId, parameters } = context;
     
     // Get the outline and current chapter info
-    const { data: novelData, error: novelError } = await supabaseClient
+    const { data: novelData, error: novelError } = await supabase
       .from('novels')
       .select('outline_data, current_chapter, total_chapters, chapters_data')
-      .eq('id', context.novelId)
+      .eq('id', novelId)
       .single();
 
     if (novelError || !novelData?.outline_data?.current) {
@@ -52,7 +46,7 @@ export default async function handler(
     const previousChapters = novelData.chapters_data?.chapters || [];
 
     // Process parameters for guidance
-    const processedParams = StoryParameterProcessor.processParameters(context.parameters);
+    const processedParams = StoryParameterProcessor.processParameters(parameters);
     Logger.info(`Processing chapter ${currentChapter} generation`);
 
     // Generate chapter
@@ -61,9 +55,9 @@ export default async function handler(
 
     while (attempts < MAX_RETRIES && !chapterContent) {
       try {
-        const chapterIntegration = generateChapterInstructions(context.parameters, currentChapter);
+        const chapterIntegration = generateChapterInstructions(parameters, currentChapter);
         const prompt = chapterDraftPrompt(
-          context.parameters,
+          parameters,
           outlineSegment,
           previousChapters.map((ch: ChapterData) => ch.content),
           currentChapter,
@@ -105,7 +99,7 @@ export default async function handler(
       }
     ];
 
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await supabase
       .from('novels')
       .update({
         current_chapter: currentChapter,
@@ -114,16 +108,16 @@ export default async function handler(
           chapters: updatedChapters
         }
       })
-      .eq('id', context.novelId);
+      .eq('id', novelId);
 
     if (updateError) {
       throw updateError;
     }
 
-    Logger.info(`Chapter ${currentChapter} generated for novel ${context.novelId}`);
+    Logger.info(`Chapter ${currentChapter} generated for novel ${novelId}`);
     return res.status(200).json({
       success: true,
-      novelId: context.novelId
+      novelId: novelId
     });
 
   } catch (error) {
