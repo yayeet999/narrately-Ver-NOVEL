@@ -16,7 +16,7 @@
     }
   ],
   "functions": {
-    "api/novel-checkpoints/**/*.ts": {
+    "src/pages/api/novel-checkpoints/**/*": {
       "maxDuration": 300
     }
   }
