@@ -1,121 +1,79 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-import { Logger } from '../../../../services/utils/Logger';
-import { ApiResponse } from '../shared/types';
-import { ValidationError, createCheckpointContext } from '../shared/validation';
-import { StoryParameterProcessor } from '../../../../services/novel/StoryParameterProcessor';
+import { createCheckpointContext } from '../shared/validation';
+import { supabase } from '../../../../integrations/supabase/client';
 import { llm } from '../../../../services/novel/LLMClient';
-import { outlineRefinementPrompt } from '../../../../services/novel/PromptTemplates';
+import { Logger } from '../../../../services/utils/Logger';
 
-const MIN_OUTLINE_LENGTH = 1000;
-const MAX_RETRIES = 3;
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<ApiResponse>
-) {
   try {
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
+    const context = await createCheckpointContext(req);
+    const { novelId } = context;
 
-    // Validate request and create context
-    const context = await createCheckpointContext(req, supabaseClient);
-    
-    // Get the initial outline
-    const { data: outlineData, error: outlineError } = await supabaseClient
+    // Fetch current novel state
+    const { data: novelData, error: fetchError } = await supabase
       .from('novels')
-      .select('outline_data')
-      .eq('id', context.novelId)
+      .select('outline_data, outline_status, parameters')
+      .eq('id', novelId)
       .single();
 
-    if (outlineError || !outlineData?.outline_data?.current) {
-      throw new Error('Failed to fetch initial outline');
+    if (fetchError) {
+      Logger.error('Failed to fetch novel data:', fetchError);
+      return res.status(500).json({ error: 'Failed to fetch novel data' });
     }
 
-    const initialOutline = outlineData.outline_data.current;
-
-    // Process parameters for guidance
-    const processedParams = StoryParameterProcessor.processParameters(context.parameters);
-    Logger.info('Parameters processed for outline revision');
-
-    // Perform first revision
-    let attempts = 0;
-    let revisedOutline: string | null = null;
-
-    while (attempts < MAX_RETRIES && !revisedOutline) {
-      try {
-        const prompt = outlineRefinementPrompt(
-          context.parameters,
-          initialOutline,
-          1
-        ).substring(0, 20000); // Trim to max length
-
-        const result = await llm.generate({
-          prompt,
-          max_tokens: 3000,
-          temperature: 0.7
-        });
-
-        if (result && result.length >= MIN_OUTLINE_LENGTH) {
-          revisedOutline = result;
-        } else {
-          throw new Error('Generated revision is too short');
-        }
-      } catch (error) {
-        attempts++;
-        Logger.warn(`Outline revision attempt ${attempts} failed:`, error);
-        if (attempts === MAX_RETRIES) throw error;
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
-      }
+    if (!novelData) {
+      return res.status(404).json({ error: 'Novel not found' });
     }
+
+    // Validate outline data
+    if (!novelData.outline_data?.current) {
+      Logger.error('Initial outline not found:', { novelId, outlineData: novelData.outline_data });
+      return res.status(400).json({ error: 'Initial outline not found' });
+    }
+
+    if (novelData.outline_status !== 'initial') {
+      Logger.error('Invalid outline status for revision one:', { novelId, status: novelData.outline_status });
+      return res.status(400).json({ error: 'Invalid outline status for revision one' });
+    }
+
+    // Generate revised outline
+    const revisedOutline = await llm.generate({
+      prompt: `Given this initial outline:\n${JSON.stringify(novelData.outline_data.current)}\n\nRevise and improve this outline based on these parameters:\n${JSON.stringify(novelData.parameters)}`,
+      temperature: 0.7,
+      max_tokens: 2000
+    });
 
     if (!revisedOutline) {
-      throw new Error('Failed to generate outline revision after multiple attempts');
+      Logger.error('Failed to generate revised outline:', { novelId });
+      return res.status(500).json({ error: 'Failed to generate revised outline' });
     }
 
-    // Store revised outline
-    const { error: updateError } = await supabaseClient
+    // Update novel with revised outline
+    const { error: updateError } = await supabase
       .from('novels')
       .update({
-        outline_status: 'pass1',
-        outline_version: 1,
         outline_data: {
-          ...outlineData.outline_data,
           current: revisedOutline,
-          iterations: [
-            ...(outlineData.outline_data.iterations || []),
-            {
-              content: revisedOutline,
-              timestamp: new Date().toISOString()
-            }
-          ]
-        }
+          iterations: [...(novelData.outline_data.iterations || []), novelData.outline_data.current]
+        },
+        outline_status: 'pass1',
+        updated_at: new Date().toISOString()
       })
-      .eq('id', context.novelId);
+      .eq('id', novelId);
 
     if (updateError) {
-      throw updateError;
+      Logger.error('Failed to update novel with revised outline:', updateError);
+      return res.status(500).json({ error: 'Failed to update novel with revised outline' });
     }
 
-    Logger.info(`First outline revision completed for novel ${context.novelId}`);
-    return res.status(200).json({
-      success: true,
-      novelId: context.novelId
-    });
-
+    Logger.info('Successfully generated and stored revised outline:', { novelId });
+    return res.status(200).json({ success: true });
   } catch (error) {
-    Logger.error('Error in outline revision:', error);
-    
-    const statusCode = error instanceof ValidationError ? 400 : 500;
-    const message = error instanceof Error ? error.message : 'An unknown error occurred';
-    
-    return res.status(statusCode).json({
-      success: false,
-      error: message,
-      details: process.env.NODE_ENV === 'development' ? String(error) : undefined
-    });
+    Logger.error('Error in revision-one endpoint:', error);
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'An unknown error occurred' });
   }
 } 

@@ -9,6 +9,7 @@ interface NovelGenerationManagerProps {
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
+const POLL_INTERVAL = 5000;
 
 const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId }) => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -17,7 +18,6 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
   const handleError = async (error: any, errorMessage: string) => {
     Logger.error(errorMessage, error);
     
-    // Update novel error state
     await supabase
       .from('novels')
       .update({
@@ -26,7 +26,6 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
       })
       .eq('id', novelId);
 
-    // Increment retry count and reset processing state
     setRetryCount(prev => prev + 1);
     setIsProcessing(false);
   };
@@ -38,19 +37,24 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
         throw new Error('No active session');
       }
 
-      // Fetch novel parameters first
+      // Fetch novel data first
       const { data: novelData, error: fetchError } = await supabase
         .from('novels')
-        .select('parameters')
+        .select('parameters, outline_data, outline_status')
         .eq('id', novelId)
         .single();
 
       if (fetchError) {
-        throw new Error(`Failed to fetch novel parameters: ${fetchError.message}`);
+        throw new Error(`Failed to fetch novel data: ${fetchError.message}`);
       }
 
       if (!novelData?.parameters) {
         throw new Error('Novel parameters not found');
+      }
+
+      // For revision endpoints, ensure we have the initial outline
+      if (endpoint.includes('revision') && (!novelData.outline_data?.current || !novelData.outline_status)) {
+        throw new Error('Initial outline not ready for revision');
       }
 
       const response = await fetch(endpoint, {
@@ -76,6 +80,7 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
 
       return true;
     } catch (error) {
+      Logger.error('API call failed:', error);
       if (retryCount < MAX_RETRIES) {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1)));
         return false;
@@ -91,10 +96,9 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
       try {
         setIsProcessing(true);
 
-        // Get current novel state with error handling
         const { data: novelData, error: fetchError } = await supabase
           .from('novels')
-          .select('novel_status, outline_status, current_chapter, total_chapters, error, parameters')
+          .select('novel_status, outline_status, current_chapter, total_chapters, error, parameters, outline_data')
           .eq('id', novelId)
           .single();
 
@@ -106,10 +110,8 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
           throw new Error('Novel not found');
         }
 
-        // Reset retry count if we successfully got the novel state
         setRetryCount(0);
 
-        // If there's an error, don't proceed unless we're retrying
         if (novelData.error && retryCount === 0) {
           setIsProcessing(false);
           return;
@@ -119,7 +121,6 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
 
         // Process based on current state
         if (novelData.novel_status === 'initializing') {
-          // Start outline generation
           const success = await makeApiCall('/api/novel-checkpoints/outline/initial', novelId);
           if (success) {
             await supabase
@@ -132,7 +133,10 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
               .eq('id', novelId);
           }
         } else if (novelData.novel_status === 'outline_in_progress') {
-          if (novelData.outline_status === 'initial') {
+          // Add delay between state transitions
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          if (novelData.outline_status === 'initial' && novelData.outline_data?.current) {
             await makeApiCall('/api/novel-checkpoints/outline/revision-one', novelId);
           } else if (novelData.outline_status === 'pass1') {
             await makeApiCall('/api/novel-checkpoints/outline/revision-two', novelId);
@@ -153,9 +157,8 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
       }
     };
 
-    // Process next step immediately and then every 10 seconds
     processNextStep();
-    const interval = setInterval(processNextStep, 10000);
+    const interval = setInterval(processNextStep, POLL_INTERVAL);
     return () => clearInterval(interval);
   }, [novelId, isProcessing, retryCount]);
 

@@ -1,8 +1,6 @@
 import { NextApiRequest } from 'next';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '../../../../integrations/supabase/client';
 import { Logger } from '../../../../services/utils/Logger';
-import { CheckpointContext } from './types';
-import { validateAndFillDefaults } from '../../../../services/novel/Validation';
 
 export class ValidationError extends Error {
   constructor(message: string) {
@@ -11,68 +9,41 @@ export class ValidationError extends Error {
   }
 }
 
-export async function validateRequest(
-  req: NextApiRequest,
-  requireAuth = true
-): Promise<{ userId: string; accessToken: string }> {
-  if (req.method !== 'POST') {
-    throw new ValidationError('Method not allowed');
-  }
-
-  const authHeader = req.headers.authorization;
-  if (requireAuth && (!authHeader || !authHeader.startsWith('Bearer '))) {
-    throw new ValidationError('No access token provided');
-  }
-
-  const accessToken = authHeader?.replace('Bearer ', '').trim() || '';
-  const { user_id } = req.body;
-
-  if (!user_id) {
-    throw new ValidationError('Missing user_id in request body');
-  }
-
-  return { userId: user_id, accessToken };
-}
-
-export function validateEnvironment(): void {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-    throw new ValidationError('Missing Supabase configuration');
-  }
-
-  if (!process.env.OPENAI_API_KEY) {
-    throw new ValidationError('Missing OpenAI API key');
-  }
-}
-
-export async function createCheckpointContext(
-  req: NextApiRequest,
-  supabaseClient: SupabaseClient
-): Promise<CheckpointContext> {
-  const { userId, accessToken } = await validateRequest(req);
-  validateEnvironment();
-
-  const { parameters, novelId } = req.body;
-  if (!parameters) {
-    throw new ValidationError('Missing parameters in request body');
-  }
-
-  if (!novelId) {
-    throw new ValidationError('Missing novelId in request body');
-  }
-
-  // Validate and process parameters
+export async function createCheckpointContext(req: NextApiRequest) {
   try {
-    const validatedParams = validateAndFillDefaults(parameters);
-    Logger.info('Parameters validated successfully');
+    if (!req.body) {
+      throw new ValidationError('Request body is required');
+    }
+
+    const { novelId, parameters } = req.body;
+
+    if (!novelId) {
+      throw new ValidationError('Novel ID is required');
+    }
+
+    if (!parameters) {
+      throw new ValidationError('Parameters are required');
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      throw new ValidationError('Authorization header is required');
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: session, error: authError } = await supabase.auth.getSession();
+
+    if (authError || !session) {
+      throw new ValidationError('Invalid authentication token');
+    }
 
     return {
       novelId,
-      userId,
-      parameters: validatedParams,
-      supabaseClient
+      parameters,
+      userId: session.session?.user.id
     };
   } catch (error) {
-    Logger.error('Parameter validation failed:', error);
-    throw new ValidationError(error instanceof Error ? error.message : 'Parameter validation failed');
+    Logger.error('Validation error:', error);
+    throw error;
   }
 } 
