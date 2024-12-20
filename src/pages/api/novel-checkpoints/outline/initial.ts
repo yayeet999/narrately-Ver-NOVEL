@@ -56,6 +56,7 @@ export default async function handler(
     const { error: updateError } = await supabase
       .from('novels')
       .update({
+        novel_status: 'outline_in_progress',
         outline_status: 'initial',
         outline_version: 0,
         outline_data: {

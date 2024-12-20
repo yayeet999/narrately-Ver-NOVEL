@@ -121,17 +121,7 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
 
         // Process based on current state
         if (novelData.novel_status === 'initializing') {
-          const success = await makeApiCall('/api/novel-checkpoints/outline/initial', novelId);
-          if (success) {
-            await supabase
-              .from('novels')
-              .update({ 
-                novel_status: 'outline_in_progress',
-                error: null,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', novelId);
-          }
+          await makeApiCall('/api/novel-checkpoints/outline/initial', novelId);
         } else if (novelData.novel_status === 'outline_in_progress') {
           // Add delay between state transitions
           await new Promise(resolve => setTimeout(resolve, 2000));
