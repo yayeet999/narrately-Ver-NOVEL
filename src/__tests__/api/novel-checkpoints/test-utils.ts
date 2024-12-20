@@ -83,8 +83,8 @@ export async function createTestNovel(supabase: SupabaseClient): Promise<string>
       title: TEST_NOVEL_PARAMETERS.title,
       user_id: 'test-user',
       parameters: TEST_NOVEL_PARAMETERS,
-      novel_status: 'initializing' as NovelStatus,
-      outline_status: 'initial' as OutlineStatus,
+      novel_status: NovelStatus.Initializing,
+      outline_status: OutlineStatus.Initial,
       outline_version: 0,
       outline_data: {
         current: null,
@@ -130,12 +130,12 @@ export function validateNovelState(novel: NovelData): void {
   if (!novel.parameters) throw new Error('Novel missing parameters');
 
   // Status validation
-  if (!Object.values(NovelStatus).includes(novel.novel_status as NovelStatus)) {
+  if (!Object.values(NovelStatus).includes(novel.novel_status)) {
     throw new Error(`Invalid novel status: ${novel.novel_status}`);
   }
 
   // Outline validation
-  if (novel.outline_data && novel.outline_status !== 'initial') {
+  if (novel.outline_data && novel.outline_status !== OutlineStatus.Initial) {
     if (!novel.outline_data.current) {
       throw new Error('Missing current outline content');
     }
@@ -157,7 +157,7 @@ export function validateNovelState(novel: NovelData): void {
       if (!chapter.content) {
         throw new Error(`Chapter ${chapter.chapter_number} missing content`);
       }
-      if (!Object.values(ChapterStatus).includes(chapter.status as ChapterStatus)) {
+      if (!Object.values(ChapterStatus).includes(chapter.status)) {
         throw new Error(`Invalid status for chapter ${chapter.chapter_number}: ${chapter.status}`);
       }
     });

@@ -15,17 +15,28 @@ export type CheckpointContext = {
   supabaseClient: SupabaseClient;
 };
 
-export type ChapterStatus = 'initial' | 'revision_one' | 'revision_two' | 'completed';
+export enum ChapterStatus {
+  Initial = 'initial',
+  RevisionOne = 'revision_one',
+  RevisionTwo = 'revision_two',
+  Completed = 'completed'
+}
 
-export type OutlineStatus = 'initial' | 'pass1' | 'pass2' | 'completed';
+export enum OutlineStatus {
+  Initial = 'initial',
+  Pass1 = 'pass1',
+  Pass2 = 'pass2',
+  Completed = 'completed'
+}
 
-export type NovelStatus = 
-  | 'initializing'
-  | 'outline_in_progress'
-  | 'outline_completed'
-  | 'in_progress'
-  | 'completed'
-  | 'error';
+export enum NovelStatus {
+  Initializing = 'initializing',
+  OutlineInProgress = 'outline_in_progress',
+  OutlineCompleted = 'outline_completed',
+  InProgress = 'in_progress',
+  Completed = 'completed',
+  Error = 'error'
+}
 
 export type ChapterData = {
   chapter_number: number;

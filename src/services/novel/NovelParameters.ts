@@ -1,3 +1,37 @@
+export interface ProcessedMetrics {
+  storyWeight: number;
+  recommendedChapters: number;
+  subplotDistribution: Array<{
+    subplotName: string;
+    chapters: Array<{
+      chapter: number;
+      focusLevel: number;
+      themeLink: string;
+    }>;
+  }>;
+  characterGuidance: Array<{
+    characterName: string;
+    appearanceFrequency: number;
+    rolesInChapters: Array<{
+      chapterRange: string;
+      suggestedActions: string[];
+    }>;
+  }>;
+  chapterGuidance: Array<{
+    chapterRange: string;
+    sceneBalance: {
+      action: number;
+      dialogue: number;
+      introspection: number;
+    };
+    tensionLevel: number;
+    viewpointDistribution: string;
+    keyObjectives: string[];
+    subplotInvolvement: string[];
+    characterFocus: string[];
+  }>;
+}
+
 export interface Character {
   name: string;
   role: 'protagonist' | 'antagonist' | 'supporting';
