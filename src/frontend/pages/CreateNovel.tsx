@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import ParameterForm from '../components/ParameterForm';
-import ProgressBar from '../components/ProgressBar';
+import NovelGenerationManager from '../components/NovelGenerationManager';
 import DownloadButton from '../components/DownloadButton';
 import { NovelParameters } from '../../services/novel/NovelParameters';
 import { Logger } from '../../services/utils/Logger';
@@ -143,7 +143,7 @@ const CreateNovel: React.FC = () => {
         <ParameterForm onSubmit={handleFormSubmit} disabled={isLoading} />
       ) : (
         <div className="space-y-6">
-          <ProgressBar novelId={novelId} />
+          <NovelGenerationManager novelId={novelId} />
           <DownloadButton novelId={novelId} />
         </div>
       )}

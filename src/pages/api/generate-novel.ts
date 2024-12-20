@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { NovelGenerator } from '../../services/novel/NovelGenerator';
 import { Logger } from '../../services/utils/Logger';
 import { validateAndFillDefaults } from '../../services/novel/Validation';
 import { StoryParameterProcessor } from '../../services/novel/StoryParameterProcessor';
