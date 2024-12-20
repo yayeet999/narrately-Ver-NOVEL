@@ -38,6 +38,21 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
         throw new Error('No active session');
       }
 
+      // Fetch novel parameters first
+      const { data: novelData, error: fetchError } = await supabase
+        .from('novels')
+        .select('parameters')
+        .eq('id', novelId)
+        .single();
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch novel parameters: ${fetchError.message}`);
+      }
+
+      if (!novelData?.parameters) {
+        throw new Error('Novel parameters not found');
+      }
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -47,13 +62,16 @@ const NovelGenerationManager: React.FC<NovelGenerationManagerProps> = ({ novelId
         body: JSON.stringify({
           novelId,
           user_id: session.data.session.user.id,
-          parameters: {} // This will be fetched from the server
+          parameters: novelData.parameters
         })
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || `API call failed: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          `API call failed: ${response.status} ${response.statusText}` +
+          (errorData.error ? ` - ${errorData.error}` : '')
+        );
       }
 
       return true;

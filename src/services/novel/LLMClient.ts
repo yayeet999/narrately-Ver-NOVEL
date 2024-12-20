@@ -16,7 +16,7 @@ export class LLMClient {
       maxRetries: 3,
       timeout: 60000, // Set timeout in client configuration instead
     });
-    this.model = 'gpt-4o-mini';
+    this.model = 'gpt-4';
   }
 
   async generate(request: { 
