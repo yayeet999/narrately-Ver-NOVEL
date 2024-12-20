@@ -8,28 +8,30 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
+  let novelId: string;
+  
   try {
     const context = await createCheckpointContext(req);
-    const { novelId } = context;
+    novelId = context.novelId;
     
     // Get the second revision outline
-    const { data: outlineData, error: outlineError } = await supabase
+    const { data: novelData, error: outlineError } = await supabase
       .from('novels')
       .select('outline_data, outline_status')
       .eq('id', novelId)
       .single();
 
-    if (outlineError || !outlineData?.outline_data?.current) {
+    if (outlineError || !novelData?.outline_data?.current) {
       throw new Error('Failed to fetch outline data');
     }
 
     // Verify we're in the correct state
-    if (outlineData.outline_status !== 'pass2') {
+    if (novelData.outline_status !== 'pass2') {
       throw new Error('Cannot finalize outline: incorrect status');
     }
 
     // Extract total chapters from outline
-    const chapterMatches = outlineData.outline_data.current.match(/Chapter\s+\d+/gi);
+    const chapterMatches = novelData.outline_data.current.match(/Chapter\s+\d+/gi);
     if (!chapterMatches) {
       throw new Error('No chapters found in outline');
     }
@@ -47,7 +49,8 @@ export default async function handler(
         outline_version: 3,
         total_chapters: totalChapters,
         current_chapter: 0,
-        novel_status: 'outline_completed'
+        novel_status: 'outline_completed',
+        updated_at: new Date().toISOString()
       })
       .eq('id', novelId);
 
@@ -63,9 +66,20 @@ export default async function handler(
 
   } catch (error) {
     Logger.error('Error in outline finalization:', error);
-    
     const statusCode = error instanceof ValidationError ? 400 : 500;
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    
+    // Update novel status to error if finalization fails
+    if (novelId) {
+      await supabase
+        .from('novels')
+        .update({
+          novel_status: 'error',
+          error: message,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', novelId);
+    }
     
     return res.status(statusCode).json({
       success: false,

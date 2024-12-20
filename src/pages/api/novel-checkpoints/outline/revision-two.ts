@@ -14,22 +14,30 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
+  let novelId: string;
+  
   try {
     const context = await createCheckpointContext(req);
-    const { novelId, parameters } = context;
+    novelId = context.novelId;
+    const { parameters } = context;
     
     // Get the first revision outline
-    const { data: outlineData, error: outlineError } = await supabase
+    const { data: novelData, error: outlineError } = await supabase
       .from('novels')
       .select('outline_data, outline_status')
       .eq('id', novelId)
       .single();
 
-    if (outlineError || !outlineData?.outline_data?.current) {
+    if (outlineError || !novelData?.outline_data?.current) {
       throw new Error('Failed to fetch outline data');
     }
 
-    const firstRevisionOutline = outlineData.outline_data.current;
+    // Verify we're in the correct state
+    if (novelData.outline_status !== 'pass1') {
+      throw new Error('Invalid outline status for second revision');
+    }
+
+    const firstRevisionOutline = novelData.outline_data.current;
 
     // Process parameters for guidance
     const processedParams = StoryParameterProcessor.processParameters(parameters);
@@ -45,7 +53,7 @@ export default async function handler(
           parameters,
           firstRevisionOutline,
           2
-        ).substring(0, 20000); // Trim to max length
+        ).substring(0, 20000);
 
         const result = await llm.generate({
           prompt,
@@ -70,23 +78,23 @@ export default async function handler(
       throw new Error('Failed to generate second outline revision after multiple attempts');
     }
 
-    // Store second revision
+    // Store second revision with updated status and version
     const { error: updateError } = await supabase
       .from('novels')
       .update({
         outline_status: 'pass2',
         outline_version: 2,
         outline_data: {
-          ...outlineData.outline_data,
           current: revisedOutline,
           iterations: [
-            ...(outlineData.outline_data.iterations || []),
+            ...(novelData.outline_data.iterations || []),
             {
               content: revisedOutline,
               timestamp: new Date().toISOString()
             }
           ]
-        }
+        },
+        updated_at: new Date().toISOString()
       })
       .eq('id', novelId);
 
@@ -104,6 +112,18 @@ export default async function handler(
     Logger.error('Error in outline revision:', error);
     const statusCode = error instanceof ValidationError ? 400 : 500;
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    
+    // Update novel status to error if revision fails
+    if (novelId) {
+      await supabase
+        .from('novels')
+        .update({
+          novel_status: 'error',
+          error: message,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', novelId);
+    }
     
     return res.status(statusCode).json({
       success: false,

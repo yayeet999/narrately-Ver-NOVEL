@@ -55,17 +55,21 @@ export default async function handler(
       throw new Error('Failed to generate outline after multiple attempts');
     }
 
-    // Store initial outline
+    // Store initial outline with proper status and version
     const { error: updateError } = await supabase
       .from('novels')
       .update({
+        outline_status: 'initial',
+        outline_version: 0,
         outline_data: {
           current: outline,
           iterations: [{
             content: outline,
             timestamp: new Date().toISOString()
           }]
-        }
+        },
+        novel_status: 'outline_in_progress',
+        updated_at: new Date().toISOString()
       })
       .eq('id', novelId);
 
@@ -83,6 +87,16 @@ export default async function handler(
     Logger.error('Error in outline generation:', error);
     const statusCode = error instanceof ValidationError ? 400 : 500;
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    
+    // Update novel status to error if generation fails
+    await supabase
+      .from('novels')
+      .update({
+        novel_status: 'error',
+        error: message,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', novelId);
     
     return res.status(statusCode).json({
       success: false,
