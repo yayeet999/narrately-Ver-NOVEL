@@ -1,5 +1,5 @@
 import { NovelParameters } from './NovelParameters';
-import { StoryParameterProcessor, ProcessedParameters } from './StoryParameterProcessor';
+import { StoryParameterProcessor, ProcessedMetrics } from './StoryParameterProcessor';
 
 export function generateOutlineInstructions(params: NovelParameters): string {
   const processedParams = StoryParameterProcessor.processParameters(params);

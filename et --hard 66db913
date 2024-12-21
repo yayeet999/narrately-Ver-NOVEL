@@ -1,0 +1,45 @@
+[33mf5a7c1c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: commit: fix: add robust error handling and default values in parameter processing
+[33mce7ac75[m HEAD@{1}: commit: fix: update ProcessedParameters to ProcessedMetrics in ParameterIntegration
+[33m0351386[m HEAD@{2}: commit: fix: align ProcessedMetrics type across codebase - Update ProcessedMetrics interface in StoryParameterProcessor - Add chapterGuidance to metrics output - Update metrics display in ParameterForm
+[33mf41d798[m HEAD@{3}: commit: refactor: improve ParameterForm with better type safety and validation - Update form handlers to properly handle all parameter types - Add proper type casting for enums and arrays - Improve character form with better relationship handling - Add helpful UI hints for relationship input
+[33m7d4f932[m HEAD@{4}: commit: fix: update parameter handling for type compatibility
+[33m66db913[m HEAD@{5}: commit: feat: enhance novel outline generation with structured JSON output and better validation
+[33ma91807c[m HEAD@{6}: commit: fix: improve outline generation reliability and error handling - increase timeout, add retries, better state management
+[33m51c5d87[m HEAD@{7}: commit: fix: improve API response handling in NovelGenerationManager to ensure proper state transitions
+[33m411ae7b[m HEAD@{8}: commit: fix: Improve state transition handling in outline generation workflow
+[33m9821364[m HEAD@{9}: commit: fix: Initialize novelId inside try block and update error handling
+[33me0968c6[m HEAD@{10}: commit: fix: Improve outline generation workflow with proper state transitions and error handling
+[33m1601875[m HEAD@{11}: commit: fix: Add ChapterData type import to finalize.ts
+[33m8a32c06[m HEAD@{12}: commit: fix: Update createCheckpointContext usage to match new signature
+[33mad4ac47[m HEAD@{13}: commit: fix: Improve novel generation workflow and error handling
+[33m33a1114[m HEAD@{14}: commit: fix: Update Vercel function pattern to match correct path
+[33mee89420[m HEAD@{15}: commit: fix: Optimize outline generation and handle timeouts
+[33ma08d245[m HEAD@{16}: commit: fix: Update NovelGenerationManager and LLMClient for outline generation
+[33mfbe0ee3[m HEAD@{17}: commit: fix: Add auth token to NovelGenerationManager API calls
+[33m42eab43[m HEAD@{18}: commit: feat: Add NovelGenerator class
+[33m70b0114[m HEAD@{19}: commit: feat: Add NovelGenerationManager and improve state handling - Add NovelGenerationManager component for state transitions - Add auth, error handling, and validation utilities - Add constants for content validation and state transitions - Update schema with new migration - Improve error recovery and retry logic
+[33m08dbe93[m HEAD@{20}: commit: fix: update ProgressBar to use novels table instead of non-existent novel_generation_states
+[33m96678b8[m HEAD@{21}: commit: fix: update ChapterStatus handling in state manager to resolve type error
+[33me28b689[m HEAD@{22}: commit: fix: define ProcessedMetrics type locally to resolve build error
+[33ma38c010[m HEAD@{23}: commit: fix: Resolve TypeScript errors and add missing methods
+[33mdfa3bfb[m HEAD@{24}: commit: fix: Add explicit type annotations in state manager to fix TypeScript error
+[33m36863f0[m HEAD@{25}: commit: fix: Update NovelParameters interface with missing properties and update StoryStructure type
+[33md75577f[m HEAD@{26}: commit: Fix: Add required name property to character initialization
+[33m384fdc1[m HEAD@{27}: commit: Update Node.js version requirement to match Vercel settings
+[33mf7c7369[m HEAD@{28}: commit: Fix: Add missing type exports in NovelParameters
+[33m393c4c7[m HEAD@{29}: commit: Update SQL schema and refactor codebase structure
+[33m339b551[m HEAD@{30}: commit: feat: initialize new API structure with shared utilities and initial outline endpoint
+[33m941d266[m HEAD@{31}: commit: fix: resolve dependency conflicts and add .npmrc
+[33m8776236[m HEAD@{32}: commit: feat: add debug logging to API route handler
+[33m82ad6e0[m HEAD@{33}: commit: fix: remove redundant storeDraft call in chapter generation
+[33m3850647[m HEAD@{34}: commit: fix: export ProcessedMetrics and related interfaces
+[33m60cfbca[m HEAD@{35}: commit: feat: Updated novel generation system with improved parameter processing and database schema
+[33m3bb51eb[m HEAD@{36}: commit: feat: Integrate StoryParameterProcessor and update prompt templates for improved novel generation
+[33m4bd2fd0[m HEAD@{37}: commit: refactor: update CheckpointManager for single-table structure
+[33me163b0a[m HEAD@{38}: commit: refactor: consolidate to single-table structure and clean up old files
+[33mf93434a[m HEAD@{39}: commit: fix: update database schema and outline storage - Add proper constraints, fix version tracking, improve RLS
+[33mca512e4[m HEAD@{40}: commit: Fix: Create proper enum type for outline_status
+[33mf2e3962[m HEAD@{41}: commit: Add complete schema setup with proper relationships and permissions
+[33mca68bed[m HEAD@{42}: commit: Fix: Recreate novel_generation_states table with proper permissions
+[33m41bc06a[m HEAD@{43}: commit: Add combined outline columns migration
+[33m6506d47[m HEAD@{44}: commit: Fix: Add robust outline_status column migration
